@@ -33,6 +33,9 @@ class Sqloo
 	public $tables = array();
 	private $_sqloo_pool;
 	private $_in_Transaction = 0;
+	private $_master_db_function;
+	private $_slave_db_function;
+	private $_selected_master_db_name = NULL;
 	
 	//Table Consts
 	//shared attributes
@@ -71,10 +74,10 @@ class Sqloo
 	const insert_high_priority = "HIGH_PRIORITY";
 	const insert_delayed = "DELAYED";
 	
-	public function __construct( $db_configure_file_path ) 
+	public function __construct( $master_db_function, $slave_db_function = NULL ) 
 	{
-		require( $db_configure_file_path );
-		$this->_sqloo_pool = new Sqloo_Pool( $master_pool, $slave_pool );
+		$this->_master_db_function = $master_db_function;
+		$this->_slave_db_function = $slave_db_function;
 	}
 	
 	public function __destruct()
@@ -86,20 +89,6 @@ class Sqloo
 	}
 	
 	public function __clone() { trigger_error( "Clone is not allowed.", E_USER_ERROR ); }
-
-	public function query( $query_string, $on_slave = FALSE, $buffered = TRUE )
-	{
-		if( $this->_in_Transaction > 0 )
-			$db = $this->_sqloo_pool->getTransactionResource();
-		else if( $on_slave === FALSE )
-			$db = $this->_sqloo_pool->getMasterResource();
-		else
-			$db = $this->_sqloo_pool->getSlaveResource();
-		
-		$resource = $buffered ? mysql_query( $query_string, $db ) : mysql_unbuffered_query( $query_string, $db );
-		if ( $resource === FALSE ) trigger_error( mysql_error( $db )."<br>\n".$query_string, E_USER_ERROR );
-		return $resource;
-	}
 		
 	public function beginTransaction()
 	{
@@ -138,7 +127,7 @@ class Sqloo
 		$insert_string .= "INTO `".$table_name."`\n";
 		$insert_string .= "SET ".self::processKeyValueArray( $insert_array )."\n";
 		$this->query( $insert_string );
-		return mysql_insert_id( $this->_sqloo_pool->getMasterResource() );
+		return mysql_insert_id( $this->_sqloo_pool->_getMasterResource() );
 	}
 	
 	public function update( $table_name, $update_array, $id_array, $limit = NULL )
@@ -175,6 +164,8 @@ class Sqloo
 		return new Sqloo_Query( $this, $array_of_queries );
 	}
 	
+	/* Schema Setup */
+	
 	public function newTable( $name )
 	{
 		return $this->tables[ $name ] = new Sqloo_Table( $name );
@@ -200,6 +191,22 @@ class Sqloo
 		return $many_to_many_table;
 	}
 	
+	/* Utilities */
+	
+	public function query( $query_string, $on_slave = FALSE, $buffered = TRUE )
+	{
+		if( $this->_in_Transaction > 0 )
+			$db = $this->_sqloo_pool->_getTransactionResource();
+		else if( $on_slave === FALSE )
+			$db = $this->_sqloo_pool->_getMasterResource();
+		else
+			$db = $this->_sqloo_pool->_getSlaveResource();
+		
+		$resource = $buffered ? mysql_query( $query_string, $db ) : mysql_unbuffered_query( $query_string, $db );
+		if ( $resource === FALSE ) trigger_error( mysql_error( $db )."<br>\n".$query_string, E_USER_ERROR );
+		return $resource;
+	}
+	
 	public function nextId( $tableName )
 	{
 		$query = "SHOW TABLE STATUS WHERE name = '".$tableName."';";
@@ -207,15 +214,6 @@ class Sqloo
 		$array = @mysql_fetch_assoc( $resource );
 		if( $array == FALSE ) trigger_error( "bad table name", E_USER_ERROR );
 		return $array[ "Auto_increment" ];
-	}
-	
-	//schema functions
-	public function checkSchema()
-	{
-		require_once( "Sqloo/Schema.php" );
-		static $schema = NULL;
-		if( $schema === NULL ) $schema = new Sqloo_Schema( $this );
-		return $schema->checkSchema();
 	}
 	
 	static public function processVariable( $value )
@@ -251,13 +249,66 @@ class Sqloo
 	static public function processKeyValueArray( $key_value_array )
 	{
 		$string = "";
-		foreach ( $key_value_array as $key => $value ) $string .= $key."=".$this->processVariable( $value ).",";
+		foreach( $key_value_array as $key => $value ) $string .= $key."=".$this->processVariable( $value ).",";
 		return rtrim( $string, "," );
 	}
 	
+	public function checkSchema()
+	{
+		require_once( "Sqloo/Schema.php" );
+		static $schema = NULL;
+		if( $schema === NULL ) $schema = new Sqloo_Schema( $this );
+		return $schema->checkSchema();
+	}
+	
+	/* Database Management */
+	
 	public function getMasterDatabaseName()
 	{
-		return $this->_sqloo_pool->getMasterDatabaseName();
+		if( $this->_selected_master_db_name === NULL ) $this->_getMasterResource();
+		return $this->_selected_master_db_name;
+	}
+	
+	private function _getTransactionResource()
+	{
+		static $selected_transaction_resource = NULL;
+		if( $selected_transaction_resource === NULL ) {
+			$selected_connection_array = call_user_func( $this->_master_db_function );
+			if( $selected_connection_array === NULL ) trigger_error( "No master db set", E_USER_ERROR );
+			$selected_transaction_resource = $this->_connectToDb( $selected_connection_array, FALSE );
+		}
+		return $selected_transaction_resource;
+	}
+	
+	private function _getMasterResource()
+	{
+		static $selected_master_resource = NULL;
+		if( $selected_master_resource === NULL ) {
+			$selected_connection_array = call_user_func( $this->_master_db_function );
+			if( $selected_connection_array === NULL ) trigger_error( "No master db set", E_USER_ERROR );
+			$selected_master_resource = $this->_connectToDb( $selected_connection_array );
+			$this->_selected_master_db_name = $selected_connection_array["database_name"];
+		}
+		return $selected_master_resource;
+	}
+
+	private function _getSlaveResource()
+	{
+		static $selected_slave_resource = NULL;
+		if ( $selected_slave_resource === NULL ) {
+			if( $this->_slave_db_function === NULL ) return $this->_getMasterResource();
+			$selected_connection_array = call_user_func( $this->_slave_db_function );
+			if( $selected_connection_array === NULL ) return $this->_getMasterResource();
+			$selected_slave_resource = $this->_connectToDb( $selected_connection_array );
+		}
+		return $selected_slave_resource;
+	}
+
+	private function _connectToDb( $info_array, $permanent_connection = TRUE )
+	{
+		$db = $permanent_connection ? mysql_pconnect( $info_array["network_address"], $info_array["username"], $info_array["password"] ) : mysql_connect( $info_array["network_address"], $info_array["username"], $info_array["password"] );
+		if( ( ! $db ) || ( ! mysql_select_db( $info_array["database_name"], $db ) ) ) trigger_error( mysql_error(), E_USER_ERROR );
+		return $db;
 	}
 
 }
