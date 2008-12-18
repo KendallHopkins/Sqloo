@@ -54,7 +54,6 @@ class Sqloo_Query_Results
 	
 	public function fetchArray()
 	{
-		if( $this->_buffered !== TRUE ) trigger_error( "query is unbuffered, if your going to use fetch array, use buffered", E_USER_ERROR );
 		$row_array = array();
 		while( $row = mysql_fetch_assoc( $this->_resource ) ) $row_array[] = $row;
 		return $row_array;

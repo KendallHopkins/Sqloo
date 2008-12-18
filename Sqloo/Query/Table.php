@@ -87,7 +87,7 @@ class Sqloo_Query_Table
 	
 	public function joinNM( $table_name, $join_type = Sqloo::join_inner )
 	{
-		$nm_table_name = Sqloo::computeJoinTableName( $this->_name, $table_name );
+		$nm_table_name = Sqloo::computeNMTableName( $this->_name, $table_name );
 		$nm_table_reference = $this->_reference."|".$nm_table_name;
 		$new_table_reference = $this->_reference."|".$table_name;
 		$new_nm_sqloo_query_table = new self( $nm_table_name, $nm_table_reference );

@@ -169,9 +169,9 @@ class Sqloo
 		return $this->_tables[ $name ] = new Sqloo_Table( $name );
 	}
 	
-	public function newRelationshipTable( $table1, $table2 )
+	public function newNMTable( $table1, $table2 )
 	{
-		$many_to_many_table = $this->newTable( self::computeJoinTableName( $table1->name, $table2->name ) );
+		$many_to_many_table = $this->newTable( self::computeNMTableName( $table1->name, $table2->name ) );
 		$many_to_many_table->parents = array(
 			$table1->name => array(
 				Sqloo::table_class => $table1, 
@@ -232,7 +232,7 @@ class Sqloo
 		}
 	}
 	
-	static public function computeJoinTableName( $first_Table, $second_table )
+	static public function computeNMTableName( $first_Table, $second_table )
 	{
 		return ( $first_Table < $second_table ) ? $first_Table."-".$second_table : $second_table."-".$first_Table;
 	}
