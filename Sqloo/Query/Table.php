@@ -1,0 +1,91 @@
+<?php
+
+class Sqloo_Query_Table
+{
+	
+	//Join Style
+	const join_child = 1;
+	const join_parent = 2;
+	const join_nm = 3;
+	
+	private $_name;
+	private $_reference;
+	private $_nm_query_table_class;
+	
+	private $_join_data = array();
+	
+	public function __construct( $table_name, $table_reference = NULL, $nm_query_table_class = NULL )
+	{
+		$this->_name = $table_name;
+		$this->_reference = ( $table_reference !== NULL ) ? $table_reference : $table_name;
+		$this->_nm_query_table_class = $nm_query_table_class;
+	}
+	
+	public function __get( $key ) { return "`".$this->_reference."`.".$key; }
+	
+	public function getNMTable()
+	{
+		if( $this->_nm_query_table_class === NULL ) trigger_error( "This table wasn't joined using joinNM(), so it doesn't have a NMTable", E_USER_ERROR );
+		return $this->_nm_query_table_class;
+	}
+	
+	public function joinChild( $table_name, $link_column, $join_type = Sqloo::join_inner )
+	{
+		$new_table_reference = $this->_reference."|".$table_name."+".$link_column;
+		$new_sqloo_query_table = new self( $table_name, $new_table_reference );
+		$this->_join_data[] = array(
+			"type" => Sqloo_Query_Table::join_child,
+			"class" => $new_sqloo_query_table,
+			"table_to" => $table_name,
+			"reference_from" => $this->_reference,
+			"reference_to" => $new_table_reference,
+			"link_column" => $link_column,
+			"join_type" => $join_type
+		);
+		return $new_sqloo_query_table;
+	}
+	
+	public function joinParent( $table_name, $link_column, $join_type = Sqloo::join_inner )
+	{
+		$new_table_reference = $this->_reference."|".$table_name."++".$link_column;
+		$new_sqloo_query_table = new self( $table_name, $new_table_reference );
+		$this->_join_data[] = array(
+			"type" => Sqloo_Query_Table::join_parent,
+			"class" => $new_sqloo_query_table,
+			"table_to" => $table_name,
+			"reference_from" => $this->_reference,
+			"reference_to" => $new_table_reference,
+			"link_column" => $link_column,
+			"join_type" => $join_type
+		);
+		return $new_sqloo_query_table;
+	}
+	
+	public function joinNM( $table_name, $join_type = Sqloo::join_inner )
+	{
+		$nm_table_name = Sqloo::computeJoinTableName( $this->_name, $table_name );
+		$nm_table_reference = $this->_reference."|".$nm_table_name;
+		$new_table_reference = $this->_reference."|".$table_name;
+		$new_nm_sqloo_query_table = new self( $nm_table_name, $nm_table_reference );
+		$new_sqloo_query_table = new self( $table_name, $new_table_reference, $new_nm_sqloo_query_table );
+		$this->_join_data[] = array(
+			"type" => Sqloo_Query_Table::join_nm,
+			"class" => $new_sqloo_query_table,
+			"table_from" => $this->_name,
+			"table_to" => $table_name,
+			"table_nm" => $nm_table_name,
+			"reference_from" => $this->_reference,
+			"reference_to" => $new_table_reference,
+			"reference_nm" => $nm_table_reference,
+			"join_type" => $join_type
+		);
+		return $new_sqloo_query_table;
+	}
+	
+	//this function is for sqloo_query use only!
+	public function getTableName() { return $this->_name; }
+	public function getJoinData() { return $this->_join_data; }
+	
+}
+
+?>

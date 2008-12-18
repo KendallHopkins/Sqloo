@@ -1,240 +1,161 @@
 <?php
 
+require_once( "Query/Results.php" );
+require_once( "Query/Table.php" );
+
 class Sqloo_Query
 {
-	const forward_join = "|";
-	const reverse_join = "<>";
 	
 	private $_sqloo;
-	private $_select_string;
-	private $_from_string;
-	private $_where_string;
-	private $_group_string;
-	private $_having_string;
-	private $_order_string;
-	private $_limit_string;
-	private $_table_names = array();
 	
-	function __construct( $sqloo )
+	/* Query Data */
+	private $_root_query_table_class = NULL;
+	private $_union_array = NULL;
+	private $_query_data = array(
+		"column" => NULL,
+		"where" => array(),
+		"order" => array(),
+		"group" => array(),
+		"having" => array(),
+		"limit" => NULL,
+		"page" => NULL,
+		"distinct" => FALSE,
+		"buffered" => TRUE
+	);
+
+	public function __construct( $sqloo, $union_array = NULL )
 	{
 		$this->_sqloo = $sqloo;
-		$this->_select_string_prefix = "SELECT\n";
-		$this->_select_string = "";
-		$this->_from_string = "";
-		$this->_where_string = "";
-		$this->_group_string = "";
-		$this->_having_string = "";
-		// http://dev.mysql.com/doc/refman/5.0/en/select.html
-		// If you use GROUP BY, output rows are sorted according to the GROUP BY columns as if you had an ORDER BY for the same columns. To avoid the overhead of sorting that GROUP BY produces, add ORDER BY NULL 
-		$this->_order_string = "ORDER BY NULL\n";
-		$this->_limit_string = "";
+		$this->_union_array = $union_array;
 	}
-	
-	public function distinctResults( $show_only_distinted_results = TRUE )
-	{
-		if( $this->_select_string_prefix == TRUE ){
-			$this->_select_string_prefix = "SELECT DISTINCT\n";
-		} else {
-			$this->_select_string_prefix = "SELECT\n";
-		}
-	}
-	
-	public function addAllColumns( )
-	{
-		$this->_select_string .= "*,\n";
-	}
-	
-	public function addColumn( $table_name, $column_name, $rename_to_string = NULL, $wrap_function_array = array() )
-	{
-		$ending = "";
-		foreach( $wrap_function_array as $wrap_function ) {
-			$this->_select_string .= $wrap_function."( ";
-			$ending .= " )";
-		}
-		$this->_select_string .= "`".$table_name."`.".$column_name;
-		$this->_select_string .= $ending;
-		$this->_select_string .= " AS `";
-		if ( $rename_to_string != NULL ) {
-			$this->_select_string .= $rename_to_string;
-		} else {
-			$this->_select_string .= $table_name.".".$column_name;
-		}
-		
-		$this->_select_string .= "`,\n";
-	}
-	
-	public function addColumnRaw( $column_string, $rename_to_string = NULL )
-	{
-		$this->_select_string .= $this->_escapeTableNames( $column_string );
-		if ( $rename_to_string != NULL ) {
-			$this->_select_string .= " AS `";
-			$this->_select_string .= $rename_to_string."`";
-		}
-		$this->_select_string .= ",\n";
-	}
-	
-	public function setFromRaw( $from_string )
-	{
-		$this->_from_string = "FROM ".$from_string."\n";
-	}
-	
-	public function setTable( $name )
-	{
-		$this->_from_string = "FROM `".$name."` `".$name."`\n";
-		$this->_table_names[$name] = $name;
-	}
-	
-	//first table is the parent
-	public function addJoin( $first_table, $parent_name, $join_type = "INNER" )
-	{
-		$first_table_name = self::stripOffLastTableFromString( $first_table );
-		$second_table = $this->_sqloo->tables[ $first_table_name ]->parents[ $parent_name ]["table"]->name;
-		$join_table_name = $first_table.self::forward_join.$parent_name;
-		
+	public function __toString() { return $this->getQueryString(); }
 
-		if ( $this->_from_string == "" ) {
-				$this->_from_string .= "FROM `".$first_table."`\n";
-				$this->_table_names[$first_table] = $first_table;
-		}
-		$this->_table_names[$join_table_name] = $join_table_name;
-		
-		$this->_from_string .= $join_type." JOIN `".$second_table."` AS `".$join_table_name."`\n";
-		$this->_from_string .= "ON `".$join_table_name."`.id = `".$first_table."`.".$parent_name."\n";
+	public function table( $table_name )
+	{
+		if( $this->_root_query_table_class !== NULL ) trigger_error( "Root table is already set", E_USER_ERROR );
+		if( $this->_union_array !== NULL ) trigger_error( "This is a union query", E_USER_ERROR );
+		$this->_root_query_table_class = new Sqloo_Query_Table( $table_name );
+		return $this->_root_query_table_class;
 	}
 	
-	//first table is the child
-	public function addBackJoin( $first_table, $second_table, $parent_name, $join_type = "INNER" )
+	public function __get( $key )
 	{
-		$first_table_name = self::stripOffLastTableFromString( $first_table );
-		$join_table_name = $first_table.self::reverse_join.$second_table;
-
-		if ( $this->_from_string == "" ) {
-				$this->_from_string .= "FROM `".$first_table."`\n";
-				$this->_table_names[$first_table] = $first_table;
-		}
-		$this->_table_names[$join_table_name] = $join_table_name;
-		
-		$this->_from_string .= $join_type." JOIN `".$second_table."` AS `".$join_table_name."`\n";
-		$this->_from_string .= "ON `".$join_table_name."`.".$parent_name." = `".$first_table."`.id\n";
+		if( array_key_exists( $key, $this->_query_data ) === FALSE ) trigger_error( "Bad key: $key", E_USER_ERROR );
+		return $this->_query_data[$key];
 	}
 	
-	public function addNMJoin( $first_table, $second_table, $join_type = "INNER" )
+	public function __set( $key, $value )
 	{
-		$second_table_name = $second_table;
-		$first_table_name = self::stripOffLastTableFromString( $first_table );
-		
-		if( $first_table_name < $second_table_name ) {
-			$join_table = $first_table_name."-".$second_table_name;
-		} else {
-			$join_table = $second_table_name."-".$first_table_name;
-		}
-		
-		$join_table_name = $first_table.self::forward_join.$join_table;
-		$second_table_join_name = $first_table.self::forward_join.$second_table;
-
-		$this->_table_names[$join_table_name] = $join_table_name;
-		$this->_table_names[$second_table_join_name] = $second_table_join_name;
-		
-		//start making string
-		if ( $this->_from_string == "" ) {
-			$this->_from_string .= "FROM `".$first_table."`\n";
-			$this->_table_names[$first_table] = $first_table;
-		}
-		$this->_from_string .= $join_type." JOIN `".$join_table."` `".$join_table_name."`\n";
-		$this->_from_string .= "ON `".$first_table."`.id = `".$join_table_name."`.".$first_table_name."\n";
-		$this->_from_string .= $join_type." JOIN `".$second_table."` AS `".$second_table_join_name."`\n";
-		$this->_from_string .= "ON `".$second_table_join_name."`.id = `".$join_table_name."`.".$second_table_name."\n";
+		if( array_key_exists( $key, $this->_query_data ) === FALSE ) trigger_error( "Bad key: $key", E_USER_ERROR );
+		$this->_query_data[$key] = $value;
 	}
 	
-	public function setWhereRaw( $where_string )
+	public function execute()
 	{
-		$this->_where_string = "WHERE ".$where_string."\n";
-	}
-	
-	public function setHavingRaw( $having_string )
-	{
-		$this->_having_string = "HAVING ".$having_string."\n";
-	}
-	
-	public function setGroup( $table_name, $column_name )
-	{
-		$this->_group_string = "GROUP BY ".$table_name.".".$column_name."\n";
-	}
-	
-	public function setGroupRaw( $group_string )
-	{
-		$this->_group_string = "GROUP BY ".$group_string."\n";
-	}
-		
-	public function setOrder( $table_name, $column_name, $ascORdesc = '' )
-	{
-		$this->_order_string = "ORDER BY ".$table_name.".".$column_name." ".$ascORdesc."\n";
-	}
-	
-	public function setOrderRaw( $order_string )
-	{
-		$this->_order_string = "ORDER BY ".$order_string."\n";
-	}
-	
-	public function setLimit( $max_number, $page_number = NULL )
-	{
-		$this->_limit_string = "LIMIT ".$max_number;	
-		if ( $page_number != NULL ) {
-			$this->_limit_string .= " OFFSET ".($max_number*$page_number);
-		}
-		$this->_limit_string .= "\n";
-	}
-	
-	private function _queryString()
-	{
-		$query_string = $this->_select_string_prefix.substr($this->_select_string, 0, -2)."\n"; //string needs comma stripped off end
-		$query_string .= $this->_from_string; 
-		$query_string .= $this->_escapeTableNames( $this->_where_string );
-		$query_string .= $this->_escapeTableNames( $this->_group_string ); 
-		$query_string .= $this->_escapeTableNames( $this->_having_string );
-		$query_string .= $this->_escapeTableNames( $this->_order_string ); 
-		$query_string .= $this->_limit_string; 
-		return $query_string;
-	}
-	
-	private function _escapeTableNames( $string )
-	{
-		$temp_array = array_reverse( $this->_table_names );
-		foreach( $temp_array as $table_name )
-		{
-			$string = str_replace($table_name.".", "`".$table_name."`.", $string );
-		}
-		return $string;
+		return new Sqloo_Query_Results( $this->_sqloo->query( $this->getQueryString(), TRUE, $this->_query_data["buffered"] ), $this->_query_data["buffered"] ); //We try to run it on the slave if possible
 	}
 	
 	public function getQueryString()
 	{
-		return $this->_queryString();
+		return $this->_getSelectString().$this->_getFromString().$this->_getWhereString().$this->_getGroupString().$this->_getHavingString().$this->_getOrderString().$this->_getLimitString();
 	}
 	
-	public function run()
+	/* Inner workings */
+	
+	private function _getSelectString()
 	{
-		$resource = $this->_sqloo->query( $this->_queryString(), TRUE ); //run on slave
-        return new Sqloo_Results( $resource );
+		$select_string = $this->_query_data["distinct"] ? "SELECT DISTINCT\n" : "SELECT\n";
+		if( count( $this->_query_data["column"] ) > 0 )
+			foreach( $this->_query_data["column"] as $output_name => $reference ) $select_string .= $reference." AS `".$output_name."`,\n";
+		else
+			$select_string .= "* \n";
+			
+		return substr( $select_string, 0, -2 )."\n";
 	}
 	
-	static public function stripOffLastTableFromString( $string )
+	private function _getFromString()
 	{
-		$first_table_name_start = FALSE;
-		foreach( array( self::forward_join, self::reverse_join ) as $join_symbol ) {
-			$symbol_location = strrpos( $string, $join_symbol );
-			if( ( $symbol_location !== FALSE ) && ( $symbol_location > $first_table_name_start ) ) {
-				$first_table_name_start = $symbol_location + strlen( $join_symbol );
+		if( ( $this->_root_query_table_class === NULL ) && ( $this->_union_array === NULL ) ) trigger_error( "Root table is not set", E_USER_ERROR );
+		if( ( $this->_root_query_table_class !== NULL ) && ( $this->_union_array !== NULL ) ) trigger_error( "Nothing set", E_USER_ERROR );
+		
+		$from_string = "FROM ";
+		if( $this->_root_query_table_class !== NULL ) {
+			$from_string .= "`".$this->_root_query_table_class->getTableName()."`\n";
+			$join_data_array = $this->_getJoinData( $this->_root_query_table_class );
+			foreach( $join_data_array as $join_data ) {
+				switch( $join_data["type"] ) {
+				case Sqloo_Query_Table::join_child:
+					$from_string .= $join_data["join_type"]." JOIN `".$join_data["table_to"]."` AS `".$join_data["reference_to"]."`\n";
+					$from_string .= "ON `".$join_data["reference_to"]."`.".$join_data["link_column"]." = `".$join_data["reference_from"]."`.id\n";
+					break;
+				case Sqloo_Query_Table::join_parent:
+					$from_string .= $join_data["join_type"]." JOIN `".$join_data["table_to"]."` AS `".$join_data["reference_to"]."`\n";
+					$from_string .= "ON `".$join_data["reference_to"]."`.id = `".$join_data["reference_from"]."`.".$join_data["link_column"]."\n";
+					break;
+				case Sqloo_Query_Table::join_nm:
+					$from_string .= $join_data["join_type"]." JOIN `".$join_data["table_nm"]."` AS `".$join_data["reference_nm"]."`\n";
+					$from_string .= "ON `".$join_data["reference_from"]."`.id = `".$join_data["reference_nm"]."`.".$join_data["table_from"]."\n";
+					$from_string .= $join_data["join_type"]." JOIN `".$join_data["table_to"]."` AS `".$join_data["reference_to"]."`\n";
+					$from_string .= "ON `".$join_data["reference_to"]."`.id = `".$join_data["reference_nm"]."`.".$join_data["table_to"]."\n";
+					break;
+				default:
+					trigger_error( "Bad join type, type_id: ".$join_data["type"], E_USER_ERROR );
+				}
 			}
+		} else {
+			$from_string .= "( ".implode( " )\nUNION\n( ", $array_of_queries )." ) union_name";
 		}
-		if( $first_table_name_start === FALSE ) {
-			$first_table_name_start = 0;
-		}
-		return substr( $string, $first_table_name_start );
+		return $from_string;
 	}
 	
-	public function __toString()
+	private function _getJoinData( $query_table_class )
 	{
-		return $this->getQueryString();
+		$join_data_array = $query_table_class->getJoinData();
+		foreach( $join_data_array as $join_data ) $join_data_array = array_merge( $join_data_array, $this->_getJoinData( $join_data["class"] ) );
+		return $join_data_array;
 	}
+	
+	private function _getWhereString()
+	{
+		return ( count( $this->_query_data["where"] ) > 0 ) ? "WHERE ( ".implode( " ) &&\n( ", $this->_query_data["where"] )." )\n" : "";
+	}
+	
+	private function _getGroupString()
+	{
+		return ( count( $this->_query_data["group"] ) > 0 ) ? "GROUP BY ".implode( ", ", $this->_query_data["group"] )."\n" : "";
+	}
+	
+	private function _getHavingString()
+	{
+		return ( count( $this->_query_data["having"] ) > 0 ) ? "HAVING ( ".implode( " ) &&\n( ", $this->_query_data["having"] )." )\n" : "";
+	}
+	
+	private function _getOrderString()
+	{
+		$order_string = "ORDER BY ";
+		if( count( $this->_query_data["order"] ) > 0 ) {
+			foreach( $this->_query_data["order"] as $reference => $order_type ) $order_string .= $reference." ".$order_type.", ";
+			$order_string = substr( $order_string, 0, -2 )."\n";
+		} else {
+			//If you use GROUP BY, output rows are sorted according to the GROUP BY columns as if you had an ORDER BY for the same columns.
+			//To avoid the overhead of sorting that GROUP BY produces, add ORDER BY NULL.
+			//http://dev.mysql.com/doc/refman/5.0/en/select.html
+			$order_string .= "NULL\n";
+		}
+		return $order_string;
+	}
+	
+	private function _getLimitString()
+	{
+		$limit_string = "";
+		if( $this->_query_data["limit"] !== NULL ) {
+			$limit_string .= "LIMIT ".$this->_query_data["limit"];	
+			if ( $this->_query_data["page"] !== NULL ) $limit_string .= " OFFSET ".( $this->_query_data["limit"]*$this->_query_data["page"] );
+			$limit_string .= "\n";
+		}
+		return $limit_string;		
+	}
+		
 }
+
+?>
