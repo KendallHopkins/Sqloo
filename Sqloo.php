@@ -29,7 +29,7 @@ require( "Sqloo/Table.php" );
 class Sqloo
 {
 
-	public $tables = array();
+	private $_tables = array();
 	private $_in_Transaction = 0;
 	private $_master_db_function;
 	private $_slave_db_function;
@@ -117,8 +117,8 @@ class Sqloo
 	public function insert( $table_name, $insert_array, $modifier = NULL )
 	{		
 		//check if we have a "magic" added/modifed field
-		if( array_key_exists( "added", $this->tables[$table_name]->columns ) ) $insert_array["added"] = "CURRENT_TIMESTAMP";
-		if( array_key_exists( "modified", $this->tables[$table_name]->columns ) ) $insert_array["modified"] = "CURRENT_TIMESTAMP";
+		if( array_key_exists( "added", $this->_tables[$table_name]->columns ) ) $insert_array["added"] = "CURRENT_TIMESTAMP";
+		if( array_key_exists( "modified", $this->_tables[$table_name]->columns ) ) $insert_array["modified"] = "CURRENT_TIMESTAMP";
 		
 		$insert_string = "INSERT ";
 		if( $modifier !== NULL ) $insert_string .= $modifier." ";
@@ -128,13 +128,13 @@ class Sqloo
 		return mysql_insert_id( $this->_getMasterResource() );
 	}
 	
-	public function update( $table_name, $update_array, $id_array, $limit = NULL )
+	public function update( $table_name, $update_array, $id_array )
 	{
 		$array_count = count( $id_array );
 		if( $array_count === 0 ) trigger_error( "array of 0 size", E_USER_ERROR );
 				
 		//check if we have a "magic" modifed field
-		if( array_key_exists( "modified", $this->tables[$table_name]->columns ) ) $update_array["modified"] = "CURRENT_TIMESTAMP";
+		if( array_key_exists( "modified", $this->_tables[$table_name]->columns ) ) $update_array["modified"] = "CURRENT_TIMESTAMP";
 				
 		/* create update string */
 		$update_string = "UPDATE `".$table_name."`\n";
@@ -166,7 +166,7 @@ class Sqloo
 	
 	public function newTable( $name )
 	{
-		return $this->tables[ $name ] = new Sqloo_Table( $name );
+		return $this->_tables[ $name ] = new Sqloo_Table( $name );
 	}
 	
 	public function newRelationshipTable( $table1, $table2 )
@@ -258,6 +258,8 @@ class Sqloo
 		if( $schema === NULL ) $schema = new Sqloo_Schema( $this );
 		return $schema->checkSchema();
 	}
+	
+	public function getTableSchemaData() { return $this->_tables; }
 	
 	/* Database Management */
 	

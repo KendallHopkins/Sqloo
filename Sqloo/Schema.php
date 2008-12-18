@@ -50,8 +50,8 @@ class Sqloo_Schema
 		$results = new Sqloo_Query_Results( $this->_sqloo->query( "SHOW TABLES;" ) );
 		$table_list_array = array();
 		while( $row = $results->fetchRow() ) $table_list_array[ end($row) ] = NULL;
-
-		foreach ( $this->_sqloo->tables as $table_name => $table_class ) {	
+		
+		foreach ( $this->_sqloo->getTableSchemaData() as $table_name => $table_class ) {	
 			/* ensure table exists */
 			$string_log .= $this->_checkTable( $table_name, $table_list_array );
 			
@@ -276,8 +276,7 @@ class Sqloo_Schema
 		
 		//build target foreign key array
 		$target_foreign_key_array = array();
-		foreach ( $this->_sqloo->tables as $table_name => $table ) {
-			$table_class = $this->_sqloo->tables[ $table_name ];
+		foreach ( $this->_sqloo->getTableSchemaData() as $table_name => $table_class ) {
 			foreach( $table_class->parents as $parent_name => $parent_attributes ) {
 				$target_foreign_key_array[ $table_name ][ $parent_name ] = array( 
 					"reference_table" => $parent_attributes[Sqloo::table_class]->name,
@@ -342,7 +341,7 @@ class Sqloo_Schema
 		foreach( $current_foreign_key_array as $table_name => $table_key_array )
 			foreach( $table_key_array as $column_name => $column_key_array_array )
 				foreach( $column_key_array_array as $column_key_array )
-					$string_log .= $this->_dropForeignKey( $table_name, $column_key_array["constraint_name"] );
+					$string_log .= $this->_dropForeignKey( $table_name, $column_key_array["constraint"] );
 		
 		return $string_log;
 	}
