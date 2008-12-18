@@ -24,14 +24,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-require( "Sqloo/Pool.php" );
 require( "Sqloo/Table.php" );
 
 class Sqloo
 {
 
 	public $tables = array();
-	private $_sqloo_pool;
 	private $_in_Transaction = 0;
 	private $_master_db_function;
 	private $_slave_db_function;
@@ -127,7 +125,7 @@ class Sqloo
 		$insert_string .= "INTO `".$table_name."`\n";
 		$insert_string .= "SET ".self::processKeyValueArray( $insert_array )."\n";
 		$this->query( $insert_string );
-		return mysql_insert_id( $this->_sqloo_pool->_getMasterResource() );
+		return mysql_insert_id( $this->_getMasterResource() );
 	}
 	
 	public function update( $table_name, $update_array, $id_array, $limit = NULL )
@@ -196,11 +194,11 @@ class Sqloo
 	public function query( $query_string, $on_slave = FALSE, $buffered = TRUE )
 	{
 		if( $this->_in_Transaction > 0 )
-			$db = $this->_sqloo_pool->_getTransactionResource();
+			$db = $this->_getTransactionResource();
 		else if( $on_slave === FALSE )
-			$db = $this->_sqloo_pool->_getMasterResource();
+			$db = $this->_getMasterResource();
 		else
-			$db = $this->_sqloo_pool->_getSlaveResource();
+			$db = $this->_getSlaveResource();
 		
 		$resource = $buffered ? mysql_query( $query_string, $db ) : mysql_unbuffered_query( $query_string, $db );
 		if ( $resource === FALSE ) trigger_error( mysql_error( $db )."<br>\n".$query_string, E_USER_ERROR );
