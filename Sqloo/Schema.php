@@ -291,18 +291,20 @@ class Sqloo_Schema
 		$db_name = $this->_sqloo->getMasterDatabaseName();
 		$current_foreign_key_array = array();
 		$query_string = "SELECT\n";
-		$query_string .= "ke.referenced_table_name reference_table,\n";
-		$query_string .= "ke.table_name table,\n";
-		$query_string .= "ke.column_name column,\n";
-		$query_string .= "ke.referenced_column_name reference_column,\n";
-		$query_string .= "ke.constraint_name constraint\n";
+		$query_string .= "ke.referenced_table_name referenced_table_name,\n";
+		$query_string .= "ke.table_name table_name,\n";
+		$query_string .= "ke.column_name column_name,\n";
+		$query_string .= "ke.referenced_column_name referenced_column_name,\n";
+		$query_string .= "ke.constraint_name constraint_name\n";
 		$query_string .= "FROM\n";
 		$query_string .= "information_schema.KEY_COLUMN_USAGE ke\n";
 		$query_string .= "WHERE\n";
 		$query_string .= "ke.referenced_table_name IS NOT NULL &&\n";
 		$query_string .= "ke.TABLE_SCHEMA = '".$db_name."';";
 		$results = new Sqloo_Query_Results( $this->_sqloo->query( $query_string ) );
-		while( $row = $results->fetchRow() ) $current_foreign_key_array[ $row["table"] ][ $row["column"] ][] = $row;
+		while( $row = $results->fetchRow() ) {
+			$current_foreign_key_array[ $row["table_name"] ][ $row["column_name"] ][] = array( "reference_table" => $row["referenced_table_name"] , "reference_column" => $row["referenced_column_name"], "constraint" => $row["constraint_name"] );
+		}
 				
 		//ensure we have every key
 		foreach( $target_foreign_key_array as $table_name => $table_key_array ) {
@@ -324,7 +326,7 @@ class Sqloo_Schema
 				
 				//fix foreign key
 				if( $need_drop === TRUE ) {
-					$string_log .= $this->_dropForeignKey( $table_name, $current_column_key_array["constraint_name"] );
+					$string_log .= $this->_dropForeignKey( $table_name, $current_column_key_array["constraint"] );
 				}
 				if( $need_add === TRUE ) {
 					$string_log .= $this->_addForeignKey( 
@@ -340,7 +342,7 @@ class Sqloo_Schema
 		foreach( $current_foreign_key_array as $table_name => $table_key_array )
 			foreach( $table_key_array as $column_name => $column_key_array_array )
 				foreach( $column_key_array_array as $column_key_array )
-					$string_log .= $this->_dropForeignKey( $table_name, $column_key_array["constraint"] );
+					$string_log .= $this->_dropForeignKey( $table_name, $column_key_array["constraint_name"] );
 		
 		return $string_log;
 	}
