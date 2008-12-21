@@ -31,7 +31,7 @@ class Sqloo_Schema
 	
 	const id_data_type = "int(10) unsigned";
 	private $_sqloo;
-	private $_id_column_attributes = array( Sqloo::data_type => self::id_data_type, Sqloo::allow_null => FALSE, Sqloo::default_value => NULL, Sqloo::primary_key => TRUE, Sqloo::auto_increment => TRUE );
+	private $_id_column_attributes = array( Sqloo::primary_key => TRUE, Sqloo::auto_increment => TRUE );
 	private $_column_default_attributes = array( Sqloo::data_type => self::id_data_type, Sqloo::allow_null => FALSE, Sqloo::default_value => NULL, Sqloo::primary_key => FALSE, Sqloo::auto_increment => FALSE );
 	private $_foreign_key_default_attributes = array( Sqloo::on_delete => Sqloo::action_cascade, Sqloo::on_update => Sqloo::action_cascade );
 	
@@ -78,7 +78,7 @@ class Sqloo_Schema
 		return $log_string;
 	}
 	
-	/* Data Fetching */
+	/* Data Fetching functions */
 	
 	function _refreshTableArray()
 	{
@@ -176,7 +176,7 @@ class Sqloo_Schema
 		return $attribute_array;
 	}
 	
-	/* Target Schema Building */
+	/* Target Array functions */
 	
 	function _refreshTargetTableDataArray()
 	{
@@ -189,7 +189,7 @@ class Sqloo_Schema
 	{
 		$this->_target_column_data_array = array();
 		foreach( $this->_sqloo->getTableSchemaData() as $table_name => $table_class ) {
-			$this->_target_column_data_array[$table_name]["id"] = $this->_id_column_attributes; //every table has an id column
+			$this->_target_column_data_array[$table_name]["id"] = array_merge( $this->_column_default_attributes, $this->_id_column_attributes ); //every table has an id column
 			foreach( $table_class->column as $column_name => $column_attribute_array ) {
 				$this->_target_column_data_array[$table_name][$column_name] = array_merge( $this->_column_default_attributes, $column_attribute_array );		
 			}
@@ -228,6 +228,8 @@ class Sqloo_Schema
 			}
 		}
 	}
+
+	/* Different Array function */
 
 	function _getForeignKeyDifferenceArray()
 	{
@@ -369,6 +371,8 @@ class Sqloo_Schema
 		return array( "add" => $add_array ,"delete" => $delete_array );
 	}
 	
+	/* Removing functions */
+	
 	function _removeUnneededForeignKeys( $unneeded_foreign_key_array )
 	{
 		$log_string = "";
@@ -401,6 +405,8 @@ class Sqloo_Schema
 		}
 		return $log_string;
 	}
+
+	/* Altering functions */
 	
 	function _alterDifferentColumns( $alter_column_array )
 	{
@@ -413,6 +419,8 @@ class Sqloo_Schema
 		return $log_string;
 	}
 	
+	/* Adding functions */
+
 	function _addMissingTables( $needed_table_array )
 	{
 		$log_string = "";
@@ -455,6 +463,8 @@ class Sqloo_Schema
 		}
 		return $log_string;
 	}
+	
+	/* Database interface functions */
 	
 	private function _addTable( $table_name, $engine_name = "InnoDB", $character_set_name = "utf8" )
 	{
