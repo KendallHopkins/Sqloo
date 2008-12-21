@@ -376,7 +376,7 @@ class Sqloo_Schema
 			if( array_key_exists( $table_name, $target_table_array ) ) {
 				unset( $target_table_array[$table_name] );
 			} else {
-				//$this->_removeTable( $table_name );
+				$this->_removeTable( $table_name );
 			}
 		}
 		foreach( $target_table_array as $table_name => $place_holder ) {
