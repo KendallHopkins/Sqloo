@@ -191,26 +191,24 @@ class Sqloo_Schema
 		$query_string .= "ke.TABLE_SCHEMA = '".$db_name."';";
 		$results = new Sqloo_Query_Results( $this->_sqloo->query( $query_string ) );
 		while( $row = $results->fetchRow() ) {
-			$current_attribute_array = $this->_getForeignKeyAttributeArray( array( "table" => $row["table_name"], "column" => $row["column_name"] ) );
+			$current_attribute_array = $this->_getForeignKeyAttributeArray( $row["table_name"], $row["column_name"] );
 			$this->_foreign_key_data_array[ $row["table_name"] ][ $row["column_name"] ][ $row["constraint_name"] ] = array( 
-				"target_column_reference_array" => array(
-					"table" => $row["referenced_table_name"],
-					"column" => $row["referenced_column_name"]
-				),
+				"target_table_name" => $row["referenced_table_name"],
+				"target_column_name" => $row["referenced_column_name"],
 				Sqloo::on_delete => $current_attribute_array[Sqloo::on_delete],
 				Sqloo::on_update => $current_attribute_array[Sqloo::on_update]
 			);
 		}
 	}
 	
-	function _getForeignKeyAttributeArray( $column_reference_array )
+	function _getForeignKeyAttributeArray( $table_name, $column_name )
 	{
 		$attribute_array = array( Sqloo::on_delete => Sqloo::action_no_action, Sqloo::on_update => Sqloo::action_no_action );
-		$results = new Sqloo_Query_Results( $this->_sqloo->query( "SHOW CREATE TABLE `".$column_reference_array["table"]."`;" ) );
+		$results = new Sqloo_Query_Results( $this->_sqloo->query( "SHOW CREATE TABLE `".$table_name."`;" ) );
 		$create_table_array = $results->fetchRow();
 		$create_table_string_array = explode( "\n", $create_table_array["Create Table"] );
 		foreach( $create_table_string_array as $string )
-			if( substr_count( $string, "FOREIGN KEY (`".$column_reference_array["column"]."`)" ) > 0 )
+			if( substr_count( $string, "FOREIGN KEY (`".$column_name."`)" ) > 0 )
 				foreach( array( Sqloo::on_delete => "ON DELETE", Sqloo::on_update => "ON UPDATE" ) as $type_id => $type_string )
 					foreach( array( Sqloo::action_restrict, Sqloo::action_cascade, Sqloo::action_set_null, Sqloo::action_no_action ) as $action )
 						if( preg_match( "/".$type_string." ".$action."/i", $string ) )
@@ -261,10 +259,8 @@ class Sqloo_Schema
 		foreach( $this->_sqloo->getTableSchemaData() as $table_name => $table_class ) {
 			foreach( $table_class->parent as $join_column_name => $parent_attribute_array ) {
 				$this->_target_foreign_key_data_array[ $table_name ][ $join_column_name ] = array(
-					"target_column_reference_array" => array(
-						"table" => $parent_attribute_array[Sqloo::parent_table_name],
-						"column" => "id"
-					),
+					"target_table_name" => $parent_attribute_array[Sqloo::parent_table_name],
+					"target_column_name" => "id",
 					Sqloo::on_delete => $parent_attribute_array[Sqloo::on_delete],
 					Sqloo::on_update => $parent_attribute_array[Sqloo::on_update]
 				);	
@@ -288,8 +284,8 @@ class Sqloo_Schema
 					foreach( $foreign_key_data_array[$table_name][$column_name] as $foreign_key_name => $foreign_key_attributes_array ) {
 						if( ( $foreign_key_attributes_array[Sqloo::on_delete] === $foreign_key_attributes_array[Sqloo::on_delete] ) &&
 							( $foreign_key_attributes_array[Sqloo::on_update] === $foreign_key_attributes_array[Sqloo::on_update] ) &&
-							( $foreign_key_attributes_array["target_column_reference_array"]["table"] === $foreign_key_attributes_array["target_column_reference_array"]["table"] ) &&
-							( $foreign_key_attributes_array["target_column_reference_array"]["column"] === $foreign_key_attributes_array["target_column_reference_array"]["column"] )
+							( $foreign_key_attributes_array["target_table_name"] === $foreign_key_attributes_array["target_table_name"] ) &&
+							( $foreign_key_attributes_array["target_column_name"] === $foreign_key_attributes_array["target_column_name"] )
 						) {
 							//we found it!
 							$key_found = TRUE;
@@ -549,7 +545,7 @@ class Sqloo_Schema
 	
 	private function _addForeignKey( $table_name, $column_name, $foreign_key_attribute_array )
 	{
-		$this->_alter_table_data[$table_name]["list"][] = "ADD FOREIGN KEY ( `".$column_name."` ) REFERENCES `".$foreign_key_attribute_array["target_column_reference_array"]["table"]."` ( `".$foreign_key_attribute_array["target_column_reference_array"]["column"]."` ) ON DELETE ".$foreign_key_attribute_array[Sqloo::on_delete]." ON UPDATE ".$foreign_key_attribute_array[Sqloo::on_update];
+		$this->_alter_table_data[$table_name]["list"][] = "ADD FOREIGN KEY ( `".$column_name."` ) REFERENCES `".$foreign_key_attribute_array["target_table_name"]."` ( `".$foreign_key_attribute_array["target_column_name"]."` ) ON DELETE ".$foreign_key_attribute_array[Sqloo::on_delete]." ON UPDATE ".$foreign_key_attribute_array[Sqloo::on_update];
 	}
 
 	private function _dropForeignKey( $table_name, $foreign_key_name )
