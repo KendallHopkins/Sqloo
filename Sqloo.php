@@ -24,8 +24,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-require( "Sqloo/Table.php" );
-
 class Sqloo
 {
 	
@@ -170,6 +168,7 @@ class Sqloo
 	
 	public function newTable( $table_name )
 	{
+		require_once( "Sqloo/Table.php" );
 		return $this->_table_array[ $table_name ] = new Sqloo_Table( $table_name );
 	}
 	
@@ -296,7 +295,7 @@ class Sqloo
 		}
 		return $selected_master_resource;
 	}
-
+	
 	private function _getSlaveResource()
 	{
 		static $selected_slave_resource = NULL;
@@ -308,14 +307,14 @@ class Sqloo
 		}
 		return $selected_slave_resource;
 	}
-
+	
 	private function _connectToDb( $info_array, $permanent_connection = TRUE )
 	{
 		$db = $permanent_connection ? mysql_pconnect( $info_array["network_address"], $info_array["username"], $info_array["password"] ) : mysql_connect( $info_array["network_address"], $info_array["username"], $info_array["password"] );
 		if( ( ! $db ) || ( ! mysql_select_db( $info_array["database_name"], $db ) ) ) trigger_error( mysql_error(), E_USER_ERROR );
 		return $db;
 	}
-
+	
 }
 
 ?>
