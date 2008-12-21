@@ -63,11 +63,11 @@ class Sqloo_Schema
 		$this->_refreshTargetIndexDataArray();
 		$this->_refreshTargetForeignKeyDataArray();
 		
-		//build the differnce arrays
-		$this->_getForeignKeyDifferenceArray();
-		$this->_getIndexDifferenceArray();
-		$this->_getColumnDifferenceArray();
-		$this->_getTableDifferenceArray();
+		//build query
+		$this->_getForeignKeyDifference();
+		$this->_getIndexDifference();
+		$this->_getColumnDifference();
+		$this->_getTableDifference();
 		
 		//correct the tables
 		return $this->_executeAlterQuery();		
@@ -257,9 +257,9 @@ class Sqloo_Schema
 		}
 	}
 
-	/* Different Array function */
+	/* Different function */
 
-	function _getForeignKeyDifferenceArray()
+	function _getForeignKeyDifference()
 	{
 		$foreign_key_data_array = $this->_foreign_key_data_array;
 		foreach( $this->_target_foreign_key_data_array as $table_name => $table_foreign_key_data ) {
@@ -297,7 +297,7 @@ class Sqloo_Schema
 		}
 	}
 	
-	function _getIndexDifferenceArray()
+	function _getIndexDifference()
 	{
 		$index_data_array = $this->_index_data_array;
 		foreach( $this->_target_index_data_array as $table_name => $target_index_array ) {
@@ -329,7 +329,7 @@ class Sqloo_Schema
 		}
 	}
 	
-	function _getColumnDifferenceArray()
+	function _getColumnDifference()
 	{
 		$column_data_array = $this->_column_data_array;
 		$modify_array = array();
@@ -369,7 +369,7 @@ class Sqloo_Schema
 		}
 	}
 	
-	function _getTableDifferenceArray()
+	function _getTableDifference()
 	{
 		$target_table_array = $this->_target_table_array;
 		foreach( $this->_table_array as $table_name ) {
