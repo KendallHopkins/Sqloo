@@ -46,13 +46,14 @@ class Sqloo_Schema
 	private $_target_column_data_array;
 	private $_target_index_data_array;
 	private $_target_foreign_key_data_array;
+	
+	private $_alter_table_data = array();
 		
 	public function __construct( $sqloo ) { $this->_sqloo = $sqloo; }
 	
 	public function checkSchema()
 	{
-		$this->_sqloo->beginTransaction();
-		$this->_sqloo->query( "SET FOREIGN_KEY_CHECKS=0;" );
+		//build the current/target data arrays
 		$this->_refreshTableArray();
 		$this->_refreshColumnDataArray();
 		$this->_refreshIndexDataArray();
@@ -60,21 +61,63 @@ class Sqloo_Schema
 		$this->_refreshTargetTableDataArray();
 		$this->_refreshTargetColumnDataArray();
 		$this->_refreshTargetIndexDataArray();
-		$this->_refreshTargetForeignKeyDataArray();		
+		$this->_refreshTargetForeignKeyDataArray();
+		
+		//build the differnce arrays
 		$foreign_key_difference_array = $this->_getForeignKeyDifferenceArray();
 		$index_difference_array = $this->_getIndexDifferenceArray();
 		$column_difference_array = $this->_getColumnDifferenceArray();
 		$table_difference_array = $this->_getTableDifferenceArray();
-		$log_string = $this->_removeUnneededForeignKeys( $foreign_key_difference_array["delete"] );
-		$log_string .= $this->_removeUneededIndexes( $index_difference_array["delete"] );
-		$log_string .= $this->_removeUnneededColumns( $column_difference_array["delete"] );
-		$log_string .= $this->_alterDifferentColumns( $column_difference_array["modify"] );
-		$log_string .= $this->_addMissingTables( $table_difference_array["add"] );
-		$log_string .= $this->_addMissingColumns( $column_difference_array["add"] );
-		$log_string .= $this->_addMissingIndexes( $index_difference_array["add"] );
-		$log_string .= $this->_addMissingForeignKeys( $foreign_key_difference_array["add"] );
-		$this->_sqloo->query( "SET FOREIGN_KEY_CHECKS=1;" );
-		$this->_sqloo->commitTransaction();
+		
+		//build the query
+		$this->_removeUnneededForeignKeys( $foreign_key_difference_array["delete"] );
+		$this->_removeUneededIndexes( $index_difference_array["delete"] );
+		$this->_removeUnneededColumns( $column_difference_array["delete"] );
+		$this->_alterDifferentColumns( $column_difference_array["modify"] );
+		$this->_addMissingTables( $table_difference_array["add"] );
+		$this->_addMissingColumns( $column_difference_array["add"] );
+		$this->_addMissingIndexes( $index_difference_array["add"] );
+		$this->_addMissingForeignKeys( $foreign_key_difference_array["add"] );
+		
+		//correct the tables
+		$log_string = $this->_executeAlterQuery();		
+		return $log_string;
+	}
+	
+	/* Correction function */
+	
+	function _executeAlterQuery()
+	{
+		$log_string = "";
+		if( count( $this->_alter_table_data ) > 0 ) {
+			$this->_sqloo->beginTransaction();
+			$this->_sqloo->query( "SET FOREIGN_KEY_CHECKS=0;" );
+			foreach( $this->_alter_table_data as $table_name => $table_query_info_array ) {
+				$query_string = "";
+				if( array_key_exists( "create", $table_query_info_array ) ) {
+					$query_string .= "CREATE TABLE `".$table_name."`(\n";
+				} else {
+					$query_string .= "ALTER TABLE `".$table_name."`\n";
+				}
+				
+				$query_string .= implode( ",\n", $table_query_info_array["list"] );
+				
+				if( array_key_exists( "create", $table_query_info_array ) ) {
+					$query_string .= "\n) ENGINE=".$table_query_info_array["create"]["engine"]." DEFAULT CHARSET=".$table_query_info_array["create"]["default_charset"].";";
+					$query_string = str_replace( //Alter syntax to Create syntax
+						array( "ADD COLUMN ", 	"ADD PRIMARY KEY ", "ADD INDEX ",	"ADD FOREIGN KEY "	), 
+						array( "",				"PRIMARY KEY ",		"INDEX ",		"FOREIGN KEY "		),
+						$query_string
+					);
+				} else {
+					$query_string .= ";";
+				}
+				$this->_sqloo->query( $query_string );
+				$log_string .= $query_string."\n";
+			}
+			$this->_sqloo->query( "SET FOREIGN_KEY_CHECKS=1;" );
+			$this->_sqloo->commitTransaction();
+		}
 		return $log_string;
 	}
 	
@@ -279,9 +322,9 @@ class Sqloo_Schema
 		$add_array = array();
 		$delete_array = array();
 		foreach( $this->_target_index_data_array as $table_name => $target_index_array ) {
-			if( array_key_exists( $table_name, $index_data_array ) ) {
-				foreach( $target_index_array as $target_index_attribute_array ) {
-					$index_found = FALSE;
+			foreach( $target_index_array as $target_index_attribute_array ) {
+				$index_found = FALSE;
+				if( array_key_exists( $table_name, $index_data_array ) ) {
 					foreach( $index_data_array[$table_name] as $index_name => $index_attribute_array ) {
 						if( ( count( array_diff_assoc( $index_attribute_array[Sqloo::column_array], $target_index_attribute_array[Sqloo::column_array] ) ) === 0 ) &&
 							( $index_attribute_array[Sqloo::unique] === $target_index_attribute_array[Sqloo::unique] )
@@ -292,10 +335,10 @@ class Sqloo_Schema
 							break;
 						}
 					}
-					//not found, mark it to add
-					if( $index_found === FALSE ) {
-						$add_array[$table_name][] = $target_index_attribute_array;
-					}
+				}
+				//not found, mark it to add
+				if( $index_found === FALSE ) {
+					$add_array[$table_name][] = $target_index_attribute_array;
 				}
 			}
 		}
@@ -375,135 +418,105 @@ class Sqloo_Schema
 	
 	function _removeUnneededForeignKeys( $unneeded_foreign_key_array )
 	{
-		$log_string = "";
 		foreach( $unneeded_foreign_key_array as $table_name => $foreign_key_array ) {
 			foreach( $foreign_key_array as $foreign_key_name ) {
-				$log_string .= $this->_dropForeignKey( $table_name, $foreign_key_name );
+				$this->_dropForeignKey( $table_name, $foreign_key_name );
 			}
 		}
-		return $log_string;
 	}
 	
 	function _removeUneededIndexes( $unneeded_index_array )
 	{
-		$log_string = "";
 		foreach( $unneeded_index_array as $table_name => $index_array ) {
 			foreach( $index_array as $index_name ) {
-				$log_string .= $this->_dropIndex( $table_name, $index_name );
+				$this->_dropIndex( $table_name, $index_name );
 			}
 		}
-		return $log_string;
 	}
 	
 	function _removeUnneededColumns( $unneeded_column_array )
 	{
-		$log_string = "";
 		foreach( $unneeded_column_array as $table_name => $column_array ) {
 			foreach( $column_array as $column_name ) {
-				$log_string .= $this->_removeColumn( $table_name, $column_name );				
+				$this->_removeColumn( $table_name, $column_name );				
 			}
 		}
-		return $log_string;
 	}
 
 	/* Altering functions */
 	
 	function _alterDifferentColumns( $alter_column_array )
 	{
-		$log_string = "";
 		foreach( $alter_column_array as $table_name => $column_array ) {
 			foreach( $column_array as $column_name => $attribute_array_array ) {
-				$log_string .= $this->_alterColumn( $table_name, $column_name, $attribute_array_array["target"], $attribute_array_array["current"] );				
+				$this->_alterColumn( $table_name, $column_name, $attribute_array_array["target"], $attribute_array_array["current"] );
 			}
 		}
-		return $log_string;
 	}
 	
 	/* Adding functions */
 
 	function _addMissingTables( $needed_table_array )
 	{
-		$log_string = "";
 		foreach( $needed_table_array as $table_name ) {
-			$log_string .= $this->_addTable( $table_name );
+			$this->_addTable( $table_name );
 		}
-		return $log_string;
 	}
 	
 	function _addMissingColumns( $needed_column_array )
 	{
-		$log_string = "";
 		foreach( $needed_column_array as $table_name => $column_array ) {
 			foreach( $column_array as $column_name => $attribute_array ) {
-				$log_string .= $this->_addColumn( $table_name, $column_name, $attribute_array );				
+				$this->_addColumn( $table_name, $column_name, $attribute_array );				
 			}
-		}
-		return $log_string;
-		
+		}		
 	}
 	
 	function _addMissingIndexes( $needed_index_array )
 	{
-		$log_string = "";
 		foreach( $needed_index_array as $table_name => $index_array ) {
 			foreach( $index_array as $index_attribute_array ) {
-				$log_string .= $this->_addIndex( $table_name, $index_attribute_array );
+				$this->_addIndex( $table_name, $index_attribute_array );
 			}
 		}
-		return $log_string;
 	}
 	
 	function _addMissingForeignKeys( $needed_foreign_key_array )
 	{
-		$log_string = "";
 		foreach( $needed_foreign_key_array as $table_name => $column_array ) {
 			foreach( $column_array as $column_name => $foreign_key_attribute_array ) {
-				$log_string .= $this->_addForeignKey( $table_name, $column_name, $foreign_key_attribute_array );
+				$this->_addForeignKey( $table_name, $column_name, $foreign_key_attribute_array );
 			}
 		}
-		return $log_string;
 	}
 	
 	/* Database interface functions */
 	
-	private function _addTable( $table_name, $engine_name = "InnoDB", $character_set_name = "utf8" )
+	private function _addTable( $table_name, $engine_name = "InnoDB", $default_charset = "utf8" )
 	{
-		$this->_sqloo->query( "CREATE TABLE `".$table_name."` (id int) CHARACTER SET ".$character_set_name." ENGINE = ".$engine_name.";" );
-		return "creating table: ".$table_name."<br>\n";
+		$this->_alter_table_data[$table_name]["create"] = array( "default_charset" => $default_charset, "engine" => $engine_name );
 	}
 	
 	private function _removeTable( $table_name )
 	{
 		$this->_sqloo->query( "DROP TABLE `".$table_name."`;" );
-		return "removing table: ".$table_name."<br>\n";
 	}
 	
 	private function _addColumn( $table_name, $column_name, $column_attributes )
-	{			
-		$query_string = "ALTER TABLE `".$table_name."`\n";
-		$query_string .= "ADD COLUMN `".$column_name."` ".$this->_buildFullTypeString( $column_attributes );
-		if( $column_attributes[Sqloo::primary_key] ) $query_string .= ",\n ADD PRIMARY KEY(`".$column_name."`)";
-		$query_string .= ";";
-		
-		$this->_sqloo->query( $query_string );
-		return "creating column: ".$table_name.".".$column_name."<br>\n";
-	}
+	{
+		$this->_alter_table_data[$table_name]["list"][] = "ADD COLUMN `".$column_name."` ".$this->_buildFullTypeString( $column_attributes );
+		if( $column_attributes[Sqloo::primary_key] ) $this->_alter_table_data[$table_name]["list"][] = "ADD PRIMARY KEY (`".$column_name."`)";	}
 	
 	private function _removeColumn( $table_name, $column_name )
 	{
-		$this->_sqloo->query( "ALTER TABLE `".$table_name."`\nDROP COLUMN `".$column_name."`;" );
-		return "removing column: ".$table_name.".".$column_name."<br>\n";
+		$this->_alter_table_data[$table_name]["list"][] = "DROP COLUMN `".$column_name."`";
 	}
 	
 	private function _alterColumn( $table_name, $column_name, $target_attribute_array, $current_attribute_array )
 	{	
-		$query_string = "ALTER TABLE `".$table_name."`\n";
-		$query_string .= "MODIFY COLUMN `".$column_name."` ".$this->_buildFullTypeString( $target_attribute_array );
-		if( ( $target_attribute_array[Sqloo::primary_key] === TRUE ) && ( $current_attribute_array[Sqloo::primary_key] === FALSE ) ) $query_string .= ",\n ADD PRIMARY KEY(`".$column_name."`)";
-		if( ( $target_attribute_array[Sqloo::primary_key] === FALSE ) && ( $current_attribute_array[Sqloo::primary_key] === TRUE ) ) $query_string .= ",\n DROP PRIMARY KEY";
-		$query_string .= ";";
-		$this->_sqloo->query( $query_string );
-		return "alter column: ".$table_name.".".$column_name."<br>\n";
+		$this->_alter_table_data[$table_name]["list"][] = "MODIFY COLUMN `".$column_name."` ".$this->_buildFullTypeString( $target_attribute_array );
+		if( ( $target_attribute_array[Sqloo::primary_key] === TRUE ) && ( $current_attribute_array[Sqloo::primary_key] === FALSE ) ) $this->_alter_table_data[$table_name]["list"][] = "ADD PRIMARY KEY (`".$column_name."`)";
+		if( ( $target_attribute_array[Sqloo::primary_key] === FALSE ) && ( $current_attribute_array[Sqloo::primary_key] === TRUE ) ) $this->_alter_table_data[$table_name]["list"][] = "DROP PRIMARY KEY";
 	}
 	
 	private function _buildFullTypeString( $target_attribute_array )
@@ -518,17 +531,15 @@ class Sqloo_Schema
 	private function _addIndex( $table_name, $index_attribute_array )
 	{
 		$index_name = $this->_getIndexName( $index_attribute_array );
-		$query = "ALTER TABLE `".$table_name."`\nADD ";
+		$query_string = "ADD ";
 		if( $index_attribute_array[Sqloo::unique] === TRUE ) $query .= "UNIQUE ";
-		$query .= "INDEX `".$index_name."` ( `".implode( "`,`", $index_attribute_array[Sqloo::column_array] )."` );";
-		$this->_sqloo->query( $query );
-		return "adding index ".$index_name." on table ".$table_name."<br>\n";
+		$query_string .= "INDEX `".$index_name."` ( `".implode( "`,`", $index_attribute_array[Sqloo::column_array] )."` )";
+		$this->_alter_table_data[$table_name]["list"][] = $query_string;
 	}
 	
 	private function _dropIndex( $table_name, $index_name )
 	{
-		$this->_sqloo->query( "ALTER TABLE `".$table_name."`\nDROP INDEX `".$index_name."`;" );
-		return "dropping index ".$index_name." on table ".$table_name."<br>\n";
+		$this->_alter_table_data[$table_name]["list"][] = "DROP INDEX `".$index_name."`";
 	}
 	
 	private function _getIndexName( $index_attribute_array )
@@ -538,14 +549,12 @@ class Sqloo_Schema
 	
 	private function _addForeignKey( $table_name, $column_name, $foreign_key_attribute_array )
 	{
-		$this->_sqloo->query( "ALTER TABLE `".$table_name."`\nADD FOREIGN KEY ( `".$column_name."` )\nREFERENCES `".$foreign_key_attribute_array["target_column_reference_array"]["table"]."` ( `".$foreign_key_attribute_array["target_column_reference_array"]["column"]."` )\nON DELETE ".$foreign_key_attribute_array[Sqloo::on_delete]."\nON UPDATE ".$foreign_key_attribute_array[Sqloo::on_update].";" );
-		return "adding foreign key from ".$table_name.".".$column_name." to ".$foreign_key_attribute_array["target_column_reference_array"]["table"].".".$foreign_key_attribute_array["target_column_reference_array"]["column"]."<br>\n";
+		$this->_alter_table_data[$table_name]["list"][] = "ADD FOREIGN KEY ( `".$column_name."` ) REFERENCES `".$foreign_key_attribute_array["target_column_reference_array"]["table"]."` ( `".$foreign_key_attribute_array["target_column_reference_array"]["column"]."` ) ON DELETE ".$foreign_key_attribute_array[Sqloo::on_delete]." ON UPDATE ".$foreign_key_attribute_array[Sqloo::on_update];
 	}
 
 	private function _dropForeignKey( $table_name, $foreign_key_name )
 	{
-		$this->_sqloo->query( "ALTER TABLE `".$table_name."`\nDROP FOREIGN KEY `".$foreign_key_name."`" );
-		return "deleting foreign key from ".$table_name." called ".$foreign_key_name."<br>\n";
+		$this->_alter_table_data[$table_name]["list"][] = "DROP FOREIGN KEY `".$foreign_key_name."`";
 	}
 	
 }
