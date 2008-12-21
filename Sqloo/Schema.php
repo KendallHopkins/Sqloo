@@ -518,16 +518,16 @@ class Sqloo_Schema
 	private function _addIndex( $table_name, $index_attribute_array )
 	{
 		$index_name = $this->_getIndexName( $index_attribute_array );
-		$query = "CREATE ";
+		$query = "ALTER TABLE `".$table_name."`\nADD ";
 		if( $index_attribute_array[Sqloo::unique] === TRUE ) $query .= "UNIQUE ";
-		$query .= "INDEX `".$index_name."` ON `".$table_name."` ( `".implode( "`,`", $index_attribute_array[Sqloo::column_array] )."` );";
+		$query .= "INDEX `".$index_name."` ( `".implode( "`,`", $index_attribute_array[Sqloo::column_array] )."` );";
 		$this->_sqloo->query( $query );
 		return "adding index ".$index_name." on table ".$table_name."<br>\n";
 	}
 	
 	private function _dropIndex( $table_name, $index_name )
 	{
-		$this->_sqloo->query( "DROP INDEX `".$index_name."` ON `".$table_name."`;" );
+		$this->_sqloo->query( "ALTER TABLE `".$table_name."`\nDROP INDEX `".$index_name."`;" );
 		return "dropping index ".$index_name." on table ".$table_name."<br>\n";
 	}
 	
