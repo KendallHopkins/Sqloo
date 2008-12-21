@@ -64,24 +64,13 @@ class Sqloo_Schema
 		$this->_refreshTargetForeignKeyDataArray();
 		
 		//build the differnce arrays
-		$foreign_key_difference_array = $this->_getForeignKeyDifferenceArray();
-		$index_difference_array = $this->_getIndexDifferenceArray();
-		$column_difference_array = $this->_getColumnDifferenceArray();
-		$table_difference_array = $this->_getTableDifferenceArray();
-		
-		//build the query
-		$this->_removeUnneededForeignKeys( $foreign_key_difference_array["delete"] );
-		$this->_removeUneededIndexes( $index_difference_array["delete"] );
-		$this->_removeUnneededColumns( $column_difference_array["delete"] );
-		$this->_alterDifferentColumns( $column_difference_array["modify"] );
-		$this->_addMissingTables( $table_difference_array["add"] );
-		$this->_addMissingColumns( $column_difference_array["add"] );
-		$this->_addMissingIndexes( $index_difference_array["add"] );
-		$this->_addMissingForeignKeys( $foreign_key_difference_array["add"] );
+		$this->_getForeignKeyDifferenceArray();
+		$this->_getIndexDifferenceArray();
+		$this->_getColumnDifferenceArray();
+		$this->_getTableDifferenceArray();
 		
 		//correct the tables
-		$log_string = $this->_executeAlterQuery();		
-		return $log_string;
+		return $this->_executeAlterQuery();		
 	}
 	
 	/* Correction function */
@@ -273,8 +262,6 @@ class Sqloo_Schema
 	function _getForeignKeyDifferenceArray()
 	{
 		$foreign_key_data_array = $this->_foreign_key_data_array;
-		$add_array = array();
-		$delete_array = array();
 		foreach( $this->_target_foreign_key_data_array as $table_name => $table_foreign_key_data ) {
 			//search for good foreign keys that exists
 			foreach( $table_foreign_key_data as $column_name => $target_foreign_key_attribute_array ){
@@ -296,7 +283,7 @@ class Sqloo_Schema
 				}
 				//mark for adding if it doesn't exists
 				if( $key_found === FALSE ) {
-					$add_array[$table_name][$column_name] = $target_foreign_key_attribute_array;
+					$this->_addForeignKey( $table_name, $column_name, $target_foreign_key_attribute_array );
 				}
 			}
 		}
@@ -304,19 +291,15 @@ class Sqloo_Schema
 		foreach( $foreign_key_data_array as $table_name => $column_array ) {
 			foreach( $column_array as $column_name => $foreign_key_array ) {
 				foreach( $foreign_key_array as $foreign_key_name => $foreign_key_attribute_array ) {
-					$delete_array[$table_name][] = $foreign_key_name;				
+					$this->_dropForeignKey( $table_name, $foreign_key_name );
 				}
 			}
 		}
-
-		return array( "add" => $add_array, "delete" => $delete_array );
 	}
 	
 	function _getIndexDifferenceArray()
 	{
 		$index_data_array = $this->_index_data_array;
-		$add_array = array();
-		$delete_array = array();
 		foreach( $this->_target_index_data_array as $table_name => $target_index_array ) {
 			foreach( $target_index_array as $target_index_attribute_array ) {
 				$index_found = FALSE;
@@ -334,26 +317,22 @@ class Sqloo_Schema
 				}
 				//not found, mark it to add
 				if( $index_found === FALSE ) {
-					$add_array[$table_name][] = $target_index_attribute_array;
+					$this->_addIndex( $table_name, $target_index_attribute_array );
 				}
 			}
 		}
 		//make a list of bad index on that table
 		foreach( $index_data_array as $table_name => $index_array ) {
 			foreach( $index_array as $index_name => $index_attribute_array ) {
-				$delete_array[$table_name][] = $index_name;
+				$this->_dropIndex( $table_name, $index_name );
 			}		
 		}
-
-		return array( "add" => $add_array, "delete" => $delete_array );
 	}
 	
 	function _getColumnDifferenceArray()
 	{
 		$column_data_array = $this->_column_data_array;
-		$add_array = array();
 		$modify_array = array();
-		$delete_array = array();
 		foreach( $this->_target_column_data_array as $table_name => $column_array ) {
 			foreach( $column_array as $column_name => $target_column_attribute_array ) {
 				$column_found = FALSE;
@@ -374,10 +353,10 @@ class Sqloo_Schema
 					}
 				}
 				if( $column_found === FALSE ) {
-					$add_array[$table_name][$column_name] = $target_column_attribute_array;
+					$this->_addColumn( $table_name, $column_name, $target_column_attribute_array );
 					unset( $column_data_array[$table_name][$column_name] );
 				} else if( ( $column_found === TRUE ) && ( $column_matches === FALSE ) ) {
-					$modify_array[$table_name][$column_name] = array( "target" => $target_column_attribute_array, "current" => $column_data_array[$table_name][$column_name] );
+					$this->_alterColumn( $table_name, $column_name, $target_column_attribute_array, $column_data_array[$table_name][$column_name] );
 					unset( $column_data_array[$table_name][$column_name] );
 				}
 			}
@@ -385,106 +364,25 @@ class Sqloo_Schema
 		
 		foreach( $column_data_array as $table_name => $column_array ) {
 			foreach( $column_array as $column_name => $column_attribute_array ) {
-				$delete_array[$table_name][] = $column_name;
+				$this->_removeColumn( $table_name, $column_name );
 			}
 		}
-		
-		return array( "add" => $add_array, "modify" => $modify_array ,"delete" => $delete_array );
 	}
 	
 	function _getTableDifferenceArray()
 	{
 		$target_table_array = $this->_target_table_array;
-		$add_array = array();
-		$delete_array = array();
 		foreach( $this->_table_array as $table_name ) {
 			if( array_key_exists( $table_name, $target_table_array ) ) {
 				unset( $target_table_array[$table_name] );
 			} else {
-				$delete_array[] = $table_name;
+				//$this->_removeTable( $table_name );
 			}
 		}
 		foreach( $target_table_array as $table_name => $place_holder ) {
-			$add_array[] = $table_name;
-		}
-		return array( "add" => $add_array ,"delete" => $delete_array );
-	}
-	
-	/* Removing functions */
-	
-	function _removeUnneededForeignKeys( $unneeded_foreign_key_array )
-	{
-		foreach( $unneeded_foreign_key_array as $table_name => $foreign_key_array ) {
-			foreach( $foreign_key_array as $foreign_key_name ) {
-				$this->_dropForeignKey( $table_name, $foreign_key_name );
-			}
-		}
-	}
-	
-	function _removeUneededIndexes( $unneeded_index_array )
-	{
-		foreach( $unneeded_index_array as $table_name => $index_array ) {
-			foreach( $index_array as $index_name ) {
-				$this->_dropIndex( $table_name, $index_name );
-			}
-		}
-	}
-	
-	function _removeUnneededColumns( $unneeded_column_array )
-	{
-		foreach( $unneeded_column_array as $table_name => $column_array ) {
-			foreach( $column_array as $column_name ) {
-				$this->_removeColumn( $table_name, $column_name );				
-			}
-		}
-	}
-
-	/* Altering functions */
-	
-	function _alterDifferentColumns( $alter_column_array )
-	{
-		foreach( $alter_column_array as $table_name => $column_array ) {
-			foreach( $column_array as $column_name => $attribute_array_array ) {
-				$this->_alterColumn( $table_name, $column_name, $attribute_array_array["target"], $attribute_array_array["current"] );
-			}
-		}
-	}
-	
-	/* Adding functions */
-
-	function _addMissingTables( $needed_table_array )
-	{
-		foreach( $needed_table_array as $table_name ) {
 			$this->_addTable( $table_name );
 		}
-	}
-	
-	function _addMissingColumns( $needed_column_array )
-	{
-		foreach( $needed_column_array as $table_name => $column_array ) {
-			foreach( $column_array as $column_name => $attribute_array ) {
-				$this->_addColumn( $table_name, $column_name, $attribute_array );				
-			}
-		}		
-	}
-	
-	function _addMissingIndexes( $needed_index_array )
-	{
-		foreach( $needed_index_array as $table_name => $index_array ) {
-			foreach( $index_array as $index_attribute_array ) {
-				$this->_addIndex( $table_name, $index_attribute_array );
-			}
-		}
-	}
-	
-	function _addMissingForeignKeys( $needed_foreign_key_array )
-	{
-		foreach( $needed_foreign_key_array as $table_name => $column_array ) {
-			foreach( $column_array as $column_name => $foreign_key_attribute_array ) {
-				$this->_addForeignKey( $table_name, $column_name, $foreign_key_attribute_array );
-			}
-		}
-	}
+	}	
 	
 	/* Database interface functions */
 	
