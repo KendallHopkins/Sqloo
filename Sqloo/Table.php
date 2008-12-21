@@ -28,30 +28,37 @@ class Sqloo_Table
 {
 	
 	public $name;
-	public $columns = array();
-	public $parents = array();
+	public $column = array();
+	public $parent = array();
+	public $index = array();
 	
 	function __construct( $table_name ) { $this->name = $table_name; }
 	
-	public function column( $column_name, $data_type, $allow_null, $default_value, $indexed = FALSE )
+	public function column( $column_name, $data_type, $allow_null = FALSE, $default_value = NULL )
 	{
-		if( array_key_exists( $column_name, $this->columns ) ) trigger_error( "Bad column name, intersects", E_USER_ERROR );
-		$this->columns[ $column_name ] = array(
+		$this->column[ $column_name ] = array(
 			Sqloo::data_type => $data_type,
 			Sqloo::allow_null => $allow_null,
-			Sqloo::default_value => $default_value,
-			Sqloo::indexed => $indexed
+			Sqloo::default_value => $default_value
 		);
 	}
 	
-	public function parent( $parent_name, $table_class, $allow_null = FALSE, $on_delete = self::cascade, $on_update = self::cascade )
+	public function parent( $join_column_name, $parent_table_name, $allow_null = FALSE, $default_value = NULL, $on_delete = Sqloo::action_cascade, $on_update = Sqloo::action_cascade )
 	{
-		if( array_key_exists( $parent_name, $this->parents ) ) trigger_error( "Bad parent name, intersects", E_USER_ERROR );
-		$this->parents[ $parent_name ] = array(
-			Sqloo::table_class => $table_class, 
+		$this->parent[ $join_column_name ] = array(
+			Sqloo::parent_table_name => $parent_table_name, 
 			Sqloo::allow_null => $allow_null, 
+			Sqloo::default_value => $default_value, 
 			Sqloo::on_delete => $on_delete, 
 			Sqloo::on_update => $on_update
+		);
+	}
+	
+	public function index( $column_array, $unique = FALSE )
+	{
+		$this->index[] = array(
+			Sqloo::column_array => $column_array,
+			Sqloo::unique => $unique
 		);
 	}
 	

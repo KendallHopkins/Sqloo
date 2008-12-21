@@ -28,35 +28,33 @@ require( "Sqloo/Table.php" );
 
 class Sqloo
 {
-
-	private $_tables = array();
-	private $_in_Transaction = 0;
-	private $_master_db_function;
-	private $_slave_db_function;
-	private $_selected_master_db_name = NULL;
 	
 	//Table Consts
-	//shared attributes
-	const allow_null = 1; //bool
+	//Parent & Column attributes
+	const allow_null = "allow_null"; //bool
+	const default_value = "default_value"; //mixed, (string, int, float, NULL)
 	
 	//Parent Attributes
-	const on_delete = 2; //action - see below
-	const on_update = 3; //action - see below
-	const table_class = 4; //class Sqloo_Table - see ./sqloo/table.php
+	const parent_table_name = "parent_table_name"; //string
+	const on_delete = "on_delete"; //action - see below
+	const on_update = "on_update"; //action - see below
 	
 	//Column Attributes
-	const data_type = 5; //string
-	const indexed = 6; //bool
-	const default_value = 7; //bool
-	const primary_key = 8; //bool
-	const auto_increment = 9; //bool
+	const data_type = "data_type"; //string
+	const primary_key = "primary_key"; //bool
+	const auto_increment = "auto_increment"; //bool
+	
+	//Index Attributes
+	const column_array = "column_array"; //array
+	const unique = "unique"; //bool
 	
 	//Actions
-	const restrict = "RESTRICT";
-	const cascade = "CASCADE";
-	const set_null = "SET NULL";
-	const no_action = "NO ACTION";
+	const action_restrict = "RESTRICT";
+	const action_cascade = "CASCADE";
+	const action_set_null = "SET NULL";
+	const action_no_action = "NO ACTION";
 	
+	//Query Consts
 	//Order Types
 	const order_ascending = "ASC";
 	const order_descending = "DESC";
@@ -71,6 +69,12 @@ class Sqloo
 	const insert_low_priority = "LOW_PRIORITY";
 	const insert_high_priority = "HIGH_PRIORITY";
 	const insert_delayed = "DELAYED";
+
+	private $_table_array = array();
+	private $_in_transaction = 0;
+	private $_master_db_function;
+	private $_slave_db_function;
+	private $_selected_master_db_name = NULL;
 	
 	public function __construct( $master_db_function, $slave_db_function = NULL ) 
 	{
@@ -80,8 +84,8 @@ class Sqloo
 	
 	public function __destruct()
 	{
-		if( $this->_in_Transaction > 0 ) {
-			for( $i = 0; $i < $this->_in_Transaction; $i++ ) $this->rollbackTransaction();
+		if( $this->_in_transaction > 0 ) {
+			for( $i = 0; $i < $this->_in_transaction; $i++ ) $this->rollbackTransaction();
 			trigger_error( $i." transaction was not close and was rolled back", E_USER_ERROR );
 		}
 	}
@@ -90,22 +94,22 @@ class Sqloo
 		
 	public function beginTransaction()
 	{
-		$this->_in_Transaction++;
+		$this->_in_transaction++;
 		$this->query( "BEGIN" );
 	}
 	
 	public function rollbackTransaction()
 	{
-		if( $this->_in_Transaction === 0 ) trigger_error( "not in a transaction, didn't rollback", E_USER_ERROR );
+		if( $this->_in_transaction === 0 ) trigger_error( "not in a transaction, didn't rollback", E_USER_ERROR );
 		$this->query( "ROLLBACK" );
-		$this->_in_Transaction--;
+		$this->_in_transaction--;
 	}
 	
 	public function commitTransaction()
 	{
-		if( $this->_in_Transaction === 0 ) trigger_error( "not in a transaction, didn't commit", E_USER_ERROR );
+		if( $this->_in_transaction === 0 ) trigger_error( "not in a transaction, didn't commit", E_USER_ERROR );
 		$this->query( "COMMIT" );
-		$this->_in_Transaction--;
+		$this->_in_transaction--;
 	}
 	
 	public function newQuery()
@@ -117,8 +121,8 @@ class Sqloo
 	public function insert( $table_name, $insert_array, $modifier = NULL )
 	{		
 		//check if we have a "magic" added/modifed field
-		if( array_key_exists( "added", $this->_tables[$table_name]->columns ) ) $insert_array["added"] = "CURRENT_TIMESTAMP";
-		if( array_key_exists( "modified", $this->_tables[$table_name]->columns ) ) $insert_array["modified"] = "CURRENT_TIMESTAMP";
+		if( array_key_exists( "added", $this->_table_array[$table_name]->column ) ) $insert_array["added"] = "CURRENT_TIMESTAMP";
+		if( array_key_exists( "modified", $this->_table_array[$table_name]->column ) ) $insert_array["modified"] = "CURRENT_TIMESTAMP";
 		
 		$insert_string = "INSERT ";
 		if( $modifier !== NULL ) $insert_string .= $modifier." ";
@@ -130,28 +134,28 @@ class Sqloo
 	
 	public function update( $table_name, $update_array, $id_array )
 	{
-		$array_count = count( $id_array );
-		if( $array_count === 0 ) trigger_error( "array of 0 size", E_USER_ERROR );
+		$id_array_count = count( $id_array );
+		if( $id_array_count === 0 ) trigger_error( "id_array of 0 size", E_USER_ERROR );
 				
 		//check if we have a "magic" modifed field
-		if( array_key_exists( "modified", $this->_tables[$table_name]->columns ) ) $update_array["modified"] = "CURRENT_TIMESTAMP";
+		if( array_key_exists( "modified", $this->_table_array[$table_name]->column ) ) $update_array["modified"] = "CURRENT_TIMESTAMP";
 				
 		/* create update string */
 		$update_string = "UPDATE `".$table_name."`\n";
 		$update_string .= "SET ".self::processKeyValueArray( $update_array )."\n";
 		$update_string .= "WHERE id IN ".self::arrayToIn( $id_array )."\n";				
-		$update_string .= "LIMIT ".$array_count."\n";
+		$update_string .= "LIMIT ".$id_array_count."\n";
 		$this->query( $update_string );
 	}
 	
 	public function delete( $table_name, $id_array )
 	{
-		$array_count = count( $id_array );
-		if ( $array_count === 0 ) trigger_error( "array of 0 size", E_USER_ERROR );
+		$id_array_count = count( $id_array );
+		if ( $id_array_count === 0 ) trigger_error( "id_array of 0 size", E_USER_ERROR );
 		
 		$delete_string = "DELETE FROM `".$table_name."`\n";
 		$delete_string .= "WHERE id IN ".self::arrayToIn( $id_array )."\n";
-		$delete_string .= "LIMIT ".$array_count.";";
+		$delete_string .= "LIMIT ".$id_array_count.";";
 		$this->query( $delete_string );
 	}
 	
@@ -164,26 +168,26 @@ class Sqloo
 	
 	/* Schema Setup */
 	
-	public function newTable( $name )
+	public function newTable( $table_name )
 	{
-		return $this->_tables[ $name ] = new Sqloo_Table( $name );
+		return $this->_table_array[ $table_name ] = new Sqloo_Table( $table_name );
 	}
 	
 	public function newNMTable( $table1, $table2 )
 	{
 		$many_to_many_table = $this->newTable( self::computeNMTableName( $table1->name, $table2->name ) );
-		$many_to_many_table->parents = array(
+		$many_to_many_table->parent = array(
 			$table1->name => array(
-				Sqloo::table_class => $table1, 
+				Sqloo::parent_table_name => $table1->name, 
 				Sqloo::allow_null => FALSE, 
-				Sqloo::on_delete => Sqloo::cascade, 
-				Sqloo::on_update => Sqloo::cascade
+				Sqloo::on_delete => Sqloo::action_cascade, 
+				Sqloo::on_update => Sqloo::action_cascade
 			),
 			$table2->name => array(
-				Sqloo::table_class => $table2, 
+				Sqloo::parent_table_name => $table2->name, 
 				Sqloo::allow_null => FALSE, 
-				Sqloo::on_delete => Sqloo::cascade, 
-				Sqloo::on_update => Sqloo::cascade
+				Sqloo::on_delete => Sqloo::action_cascade, 
+				Sqloo::on_update => Sqloo::action_cascade
 			)
 		);
 		return $many_to_many_table;
@@ -193,7 +197,7 @@ class Sqloo
 	
 	public function query( $query_string, $on_slave = FALSE, $buffered = TRUE )
 	{
-		if( $this->_in_Transaction > 0 )
+		if( $this->_in_transaction > 0 )
 			$db = $this->_getTransactionResource();
 		else if( $on_slave === FALSE )
 			$db = $this->_getMasterResource();
@@ -259,7 +263,7 @@ class Sqloo
 		return $schema->checkSchema();
 	}
 	
-	public function getTableSchemaData() { return $this->_tables; }
+	public function getTableSchemaData() { return $this->_table_array; }
 	
 	/* Database Management */
 	
@@ -276,6 +280,7 @@ class Sqloo
 			$selected_connection_array = call_user_func( $this->_master_db_function );
 			if( $selected_connection_array === NULL ) trigger_error( "No master db set", E_USER_ERROR );
 			$selected_transaction_resource = $this->_connectToDb( $selected_connection_array, FALSE );
+			$this->_selected_master_db_name = $selected_connection_array["database_name"];
 		}
 		return $selected_transaction_resource;
 	}

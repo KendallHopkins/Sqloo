@@ -24,9 +24,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-require_once( "Query/Results.php" );
-require_once( "Query/Table.php" );
-
 class Sqloo_Query
 {
 	
@@ -58,6 +55,7 @@ class Sqloo_Query
 	{
 		if( $this->_root_query_table_class !== NULL ) trigger_error( "Root table is already set", E_USER_ERROR );
 		if( $this->_union_array !== NULL ) trigger_error( "This is a union query", E_USER_ERROR );
+		require_once( "Query/Table.php" );
 		$this->_root_query_table_class = new Sqloo_Query_Table( $table_name );
 		return $this->_root_query_table_class;
 	}
@@ -76,6 +74,7 @@ class Sqloo_Query
 	
 	public function execute()
 	{
+		require_once( "Query/Results.php" );
 		return new Sqloo_Query_Results( $this->_sqloo->query( $this->getQueryString(), TRUE, $this->_query_data["buffered"] ), $this->_query_data["buffered"] ); //We try to run it on the slave if possible
 	}
 	
@@ -110,11 +109,11 @@ class Sqloo_Query
 				switch( $join_data["type"] ) {
 				case Sqloo_Query_Table::join_child:
 					$from_string .= $join_data["join_type"]." JOIN `".$join_data["table_to"]."` AS `".$join_data["reference_to"]."`\n";
-					$from_string .= "ON `".$join_data["reference_to"]."`.".$join_data["link_column"]." = `".$join_data["reference_from"]."`.id\n";
+					$from_string .= "ON `".$join_data["reference_to"]."`.".$join_data["join_column"]." = `".$join_data["reference_from"]."`.id\n";
 					break;
 				case Sqloo_Query_Table::join_parent:
 					$from_string .= $join_data["join_type"]." JOIN `".$join_data["table_to"]."` AS `".$join_data["reference_to"]."`\n";
-					$from_string .= "ON `".$join_data["reference_to"]."`.id = `".$join_data["reference_from"]."`.".$join_data["link_column"]."\n";
+					$from_string .= "ON `".$join_data["reference_to"]."`.id = `".$join_data["reference_from"]."`.".$join_data["join_column"]."\n";
 					break;
 				case Sqloo_Query_Table::join_nm:
 					$from_string .= $join_data["join_type"]." JOIN `".$join_data["table_nm"]."` AS `".$join_data["reference_nm"]."`\n";

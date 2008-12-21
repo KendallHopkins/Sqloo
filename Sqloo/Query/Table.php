@@ -35,7 +35,6 @@ class Sqloo_Query_Table
 	private $_name;
 	private $_reference;
 	private $_nm_query_table_class;
-	
 	private $_join_data = array();
 	
 	public function __construct( $table_name, $table_reference = NULL, $nm_query_table_class = NULL )
@@ -53,33 +52,33 @@ class Sqloo_Query_Table
 		return $this->_nm_query_table_class;
 	}
 	
-	public function joinChild( $table_name, $link_column, $join_type = Sqloo::join_inner )
+	public function joinChild( $child_table_name, $join_column, $join_type = Sqloo::join_inner )
 	{
-		$new_table_reference = $this->_reference."|".$table_name."+".$link_column;
-		$new_sqloo_query_table = new self( $table_name, $new_table_reference );
+		$new_table_reference = $this->_reference."|".$child_table_name."+".$join_column;
+		$new_sqloo_query_table = new self( $child_table_name, $new_table_reference );
 		$this->_join_data[] = array(
 			"type" => Sqloo_Query_Table::join_child,
 			"class" => $new_sqloo_query_table,
-			"table_to" => $table_name,
+			"table_to" => $child_table_name,
 			"reference_from" => $this->_reference,
 			"reference_to" => $new_table_reference,
-			"link_column" => $link_column,
+			"join_column" => $join_column,
 			"join_type" => $join_type
 		);
 		return $new_sqloo_query_table;
 	}
 	
-	public function joinParent( $table_name, $link_column, $join_type = Sqloo::join_inner )
+	public function joinParent( $parent_table_name, $join_column, $join_type = Sqloo::join_inner )
 	{
-		$new_table_reference = $this->_reference."|".$table_name."++".$link_column;
-		$new_sqloo_query_table = new self( $table_name, $new_table_reference );
+		$new_table_reference = $this->_reference."|".$parent_table_name."++".$join_column;
+		$new_sqloo_query_table = new self( $parent_table_name, $new_table_reference );
 		$this->_join_data[] = array(
 			"type" => Sqloo_Query_Table::join_parent,
 			"class" => $new_sqloo_query_table,
-			"table_to" => $table_name,
+			"table_to" => $parent_table_name,
 			"reference_from" => $this->_reference,
 			"reference_to" => $new_table_reference,
-			"link_column" => $link_column,
+			"join_column" => $join_column,
 			"join_type" => $join_type
 		);
 		return $new_sqloo_query_table;
@@ -106,7 +105,6 @@ class Sqloo_Query_Table
 		return $new_sqloo_query_table;
 	}
 	
-	//this function is for sqloo_query use only!
 	public function getTableName() { return $this->_name; }
 	public function getJoinData() { return $this->_join_data; }
 	
