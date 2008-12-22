@@ -64,10 +64,10 @@ class Sqloo_Schema
 		$this->_refreshTargetForeignKeyDataArray();
 		
 		//build query
-		$this->_getForeignKeyDifference();
-		$this->_getIndexDifference();
-		$this->_getColumnDifference();
 		$this->_getTableDifference();
+		$this->_getColumnDifference();
+		$this->_getIndexDifference();
+		$this->_getForeignKeyDifference();
 		
 		//correct the tables
 		return $this->_executeAlterQuery();		

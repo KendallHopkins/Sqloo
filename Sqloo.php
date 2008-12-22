@@ -72,12 +72,16 @@ class Sqloo
 	private $_in_transaction = 0;
 	private $_master_db_function;
 	private $_slave_db_function;
+	private $_load_table_function
+	private $_load_all_tables_function;
 	private $_selected_master_db_name = NULL;
 	
-	public function __construct( $master_db_function, $slave_db_function = NULL ) 
+	public function __construct( $master_db_function, $slave_db_function = NULL, $load_table_function = NULL, $load_all_tables_function = NULL ) 
 	{
 		$this->_master_db_function = $master_db_function;
 		$this->_slave_db_function = $slave_db_function;
+		$this->_load_table_function = $load_table_function;
+		$this->_load_all_tables_function = $load_all_tables_function;
 	}
 	
 	public function __destruct()
@@ -119,8 +123,9 @@ class Sqloo
 	public function insert( $table_name, $insert_array, $modifier = NULL )
 	{		
 		//check if we have a "magic" added/modifed field
-		if( array_key_exists( "added", $this->_table_array[$table_name]->column ) ) $insert_array["added"] = "CURRENT_TIMESTAMP";
-		if( array_key_exists( "modified", $this->_table_array[$table_name]->column ) ) $insert_array["modified"] = "CURRENT_TIMESTAMP";
+		$table_column_array = $this->getTable($table_name)->column;
+		if( array_key_exists( "added", $table_column_array ) ) $insert_array["added"] = "CURRENT_TIMESTAMP";
+		if( array_key_exists( "modified", $table_column_array ) ) $insert_array["modified"] = "CURRENT_TIMESTAMP";
 		
 		$insert_string = "INSERT ";
 		if( $modifier !== NULL ) $insert_string .= $modifier." ";
@@ -136,7 +141,7 @@ class Sqloo
 		if( $id_array_count === 0 ) trigger_error( "id_array of 0 size", E_USER_ERROR );
 				
 		//check if we have a "magic" modifed field
-		if( array_key_exists( "modified", $this->_table_array[$table_name]->column ) ) $update_array["modified"] = "CURRENT_TIMESTAMP";
+		if( array_key_exists( "modified", $this->getTable($table_name)->column ) ) $update_array["modified"] = "CURRENT_TIMESTAMP";
 				
 		/* create update string */
 		$update_string = "UPDATE `".$table_name."`\n";
@@ -262,7 +267,21 @@ class Sqloo
 		return $schema->checkSchema();
 	}
 	
-	public function getTableSchemaData() { return $this->_table_array; }
+	public function getTableSchemaData()
+	{
+		if( $this->_load_all_tables_function !== NULL ) call_user_func( $this->_load_all_tables_function, $this );
+		return $this->_table_array;
+	}
+	
+	private function getTable( $table_name )
+	{
+		if( array_key_exists( $table_name, $this->_table_array ) ) return $this->_table_array[$table_name];
+		if( $this->_load_tables_function !== NULL ) call_user_func( $this->_load_tables_function, $table_name, $this );
+		if( array_key_exists( $table_name, $this->_table_array ) ) return $this->_table_array[$table_name];
+		if( $this->_load_all_tables_function !== NULL ) call_user_func( $this->_load_all_tables_function, $this );
+		if( array_key_exists( $table_name, $this->_table_array ) ) return $this->_table_array[$table_name];
+		trigger_error( "could not load table: ".$table_name, E_USER_ERROR );
+	}
 	
 	/* Database Management */
 	
