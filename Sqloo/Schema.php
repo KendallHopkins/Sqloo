@@ -282,7 +282,7 @@ class Sqloo_Schema
 					}
 				}
 				//mark for adding if it doesn't exists
-				if( $key_found === FALSE ) {
+				if( ! $key_found ) {
 					$this->_addForeignKey( $table_name, $column_name, $target_foreign_key_attribute_array );
 				}
 			}
@@ -316,7 +316,7 @@ class Sqloo_Schema
 					}
 				}
 				//not found, mark it to add
-				if( $index_found === FALSE ) {
+				if( ! $index_found ) {
 					$this->_addIndex( $table_name, $target_index_attribute_array );
 				}
 			}
@@ -352,10 +352,10 @@ class Sqloo_Schema
 						unset( $column_data_array[$table_name][$column_name] );
 					}
 				}
-				if( $column_found === FALSE ) {
+				if( ! $column_found ) {
 					$this->_addColumn( $table_name, $column_name, $target_column_attribute_array );
 					unset( $column_data_array[$table_name][$column_name] );
-				} else if( ( $column_found === TRUE ) && ( $column_matches === FALSE ) ) {
+				} else if( $column_found && ( ! $column_matches ) ) {
 					$this->_alterColumn( $table_name, $column_name, $target_column_attribute_array, $column_data_array[$table_name][$column_name] );
 					unset( $column_data_array[$table_name][$column_name] );
 				}
@@ -409,16 +409,16 @@ class Sqloo_Schema
 	private function _alterColumn( $table_name, $column_name, $target_attribute_array, $current_attribute_array )
 	{	
 		$this->_alter_table_data[$table_name]["list"][] = "MODIFY COLUMN `".$column_name."` ".$this->_buildFullTypeString( $target_attribute_array );
-		if( ( $target_attribute_array[Sqloo::primary_key] === TRUE ) && ( $current_attribute_array[Sqloo::primary_key] === FALSE ) ) $this->_alter_table_data[$table_name]["list"][] = "ADD PRIMARY KEY (`".$column_name."`)";
-		if( ( $target_attribute_array[Sqloo::primary_key] === FALSE ) && ( $current_attribute_array[Sqloo::primary_key] === TRUE ) ) $this->_alter_table_data[$table_name]["list"][] = "DROP PRIMARY KEY";
+		if( $target_attribute_array[Sqloo::primary_key] && ( ! $current_attribute_array[Sqloo::primary_key] ) ) $this->_alter_table_data[$table_name]["list"][] = "ADD PRIMARY KEY (`".$column_name."`)";
+		if( ( ! $target_attribute_array[Sqloo::primary_key] ) && $current_attribute_array[Sqloo::primary_key] ) $this->_alter_table_data[$table_name]["list"][] = "DROP PRIMARY KEY";
 	}
 	
 	private function _buildFullTypeString( $target_attribute_array )
 	{
 		$full_type_string = $target_attribute_array[Sqloo::data_type];
-		$full_type_string .= ( $target_attribute_array[Sqloo::allow_null] === TRUE ) ? " NULL" : " NOT NULL";
+		$full_type_string .= ( $target_attribute_array[Sqloo::allow_null] ) ? " NULL" : " NOT NULL";
 		$full_type_string .= ( $target_attribute_array[Sqloo::default_value] !== NULL ) ? " DEFAULT '".$target_attribute_array[Sqloo::default_value]."'" : "";
-		$full_type_string .= ( $target_attribute_array[Sqloo::auto_increment] === TRUE ) ? " AUTO_INCREMENT" : "";
+		$full_type_string .= ( $target_attribute_array[Sqloo::auto_increment] ) ? " AUTO_INCREMENT" : "";
 		return $full_type_string;
 	}
 	
@@ -426,7 +426,7 @@ class Sqloo_Schema
 	{
 		$index_name = $this->_getIndexName( $index_attribute_array );
 		$query_string = "ADD ";
-		if( $index_attribute_array[Sqloo::unique] === TRUE ) $query .= "UNIQUE ";
+		if( $index_attribute_array[Sqloo::unique] ) $query .= "UNIQUE ";
 		$query_string .= "INDEX `".$index_name."` ( `".implode( "`,`", $index_attribute_array[Sqloo::column_array] )."` )";
 		$this->_alter_table_data[$table_name]["list"][] = $query_string;
 	}

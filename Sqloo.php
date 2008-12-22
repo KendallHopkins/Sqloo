@@ -203,13 +203,13 @@ class Sqloo
 	{
 		if( $this->_in_transaction > 0 )
 			$db = $this->_getTransactionResource();
-		else if( $on_slave === FALSE )
+		else if( ! $on_slave )
 			$db = $this->_getMasterResource();
 		else
 			$db = $this->_getSlaveResource();
 		
 		$resource = $buffered ? mysql_query( $query_string, $db ) : mysql_unbuffered_query( $query_string, $db );
-		if ( $resource === FALSE ) trigger_error( mysql_error( $db )."<br>\n".$query_string, E_USER_ERROR );
+		if ( ! $resource ) trigger_error( mysql_error( $db )."<br>\n".$query_string, E_USER_ERROR );
 		return $resource;
 	}
 	

@@ -62,13 +62,13 @@ class Sqloo_Query
 	
 	public function __get( $key )
 	{
-		if( array_key_exists( $key, $this->_query_data ) === FALSE ) trigger_error( "Bad key: $key", E_USER_ERROR );
+		if( ! array_key_exists( $key, $this->_query_data ) ) trigger_error( "Bad key: $key", E_USER_ERROR );
 		return $this->_query_data[$key];
 	}
 	
 	public function __set( $key, $value )
 	{
-		if( array_key_exists( $key, $this->_query_data ) === FALSE ) trigger_error( "Bad key: $key", E_USER_ERROR );
+		if( ! array_key_exists( $key, $this->_query_data ) ) trigger_error( "Bad key: $key", E_USER_ERROR );
 		$this->_query_data[$key] = $value;
 	}
 	
