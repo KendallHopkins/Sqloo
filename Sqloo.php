@@ -68,13 +68,12 @@ class Sqloo
 	const insert_high_priority = "HIGH_PRIORITY";
 	const insert_delayed = "DELAYED";
 
-	private $_table_array = array();
-	private $_in_transaction = 0;
 	private $_master_db_function;
 	private $_slave_db_function;
-	private $_load_table_function
+	private $_load_table_function;
 	private $_load_all_tables_function;
-	private $_selected_master_db_name = NULL;
+	private $_table_array = array();
+	private $_transaction_depth = 0;
 	
 	/**
 	*	Construct Function
@@ -98,8 +97,8 @@ class Sqloo
 	
 	public function __destruct()
 	{
-		if( $this->_in_transaction > 0 ) {
-			for( $i = 0; $i < $this->_in_transaction; $i++ ) $this->rollbackTransaction();
+		if( $this->_transaction_depth > 0 ) {
+			for( $i = 0; $i < $this->_transaction_depth; $i++ ) $this->rollbackTransaction();
 			trigger_error( $i." transaction was not close and was rolled back", E_USER_ERROR );
 		}
 	}
@@ -114,7 +113,7 @@ class Sqloo
 	
 	public function beginTransaction()
 	{
-		$this->_in_transaction++;
+		$this->_transaction_depth++;
 		$this->query( "BEGIN" );
 	}
 	
@@ -124,9 +123,9 @@ class Sqloo
 	
 	public function rollbackTransaction()
 	{
-		if( $this->_in_transaction === 0 ) trigger_error( "not in a transaction, didn't rollback", E_USER_ERROR );
+		if( $this->_transaction_depth === 0 ) trigger_error( "not in a transaction, didn't rollback", E_USER_ERROR );
 		$this->query( "ROLLBACK" );
-		$this->_in_transaction--;
+		$this->_transaction_depth--;
 	}
 	
 	/**
@@ -135,9 +134,9 @@ class Sqloo
 	
 	public function commitTransaction()
 	{
-		if( $this->_in_transaction === 0 ) trigger_error( "not in a transaction, didn't commit", E_USER_ERROR );
+		if( $this->_transaction_depth === 0 ) trigger_error( "not in a transaction, didn't commit", E_USER_ERROR );
 		$this->query( "COMMIT" );
-		$this->_in_transaction--;
+		$this->_transaction_depth--;
 	}
 	
 	/**
@@ -290,16 +289,17 @@ class Sqloo
 	
 	public function query( $query_string, $on_slave = FALSE, $buffered = TRUE )
 	{
-		if( $this->_in_transaction > 0 )
-			$db = $this->_getTransactionResource();
+		if( $this->_transaction_depth > 0 )
+			$query_type = "transaction";
 		else if( ! $on_slave )
-			$db = $this->_getMasterResource();
+			$query_type = "master";
 		else
-			$db = $this->_getSlaveResource();
+			$query_type = "slave";
 		
-		$resource = $buffered ? mysql_query( $query_string, $db ) : mysql_unbuffered_query( $query_string, $db );
-		if ( ! $resource ) trigger_error( mysql_error( $db )."<br>\n".$query_string, E_USER_ERROR );
-		return $resource;
+		$database_resource = $this->_getDatabaseResource( $query_type );
+		$query_resource = $buffered ? mysql_query( $query_string, $database_resource ) : mysql_unbuffered_query( $query_string, $database_resource );
+		if ( ! $query_resource ) trigger_error( mysql_error( $database_resource )."<br>\n".$query_string, E_USER_ERROR );
+		return $query_resource;
 	}
 	
 	/**
@@ -365,15 +365,7 @@ class Sqloo
 	public function checkSchema()
 	{
 		require_once( "Sqloo/Schema.php" );
-		static $schema = NULL;
-		if( $schema === NULL ) $schema = new Sqloo_Schema( $this );
-		return $schema->checkSchema();
-	}
-	
-	public function getTableSchemaData()
-	{
-		if( $this->_load_all_tables_function !== NULL ) call_user_func( $this->_load_all_tables_function, $this );
-		return $this->_table_array;
+		return Sqloo_Schema::checkSchema( $this->getAllTables(), $this->_getDatabaseResource( "master" ), $this->_getDatabaseConfiguration( "master" ) );
 	}
 	
 	private function getTable( $table_name )
@@ -381,60 +373,73 @@ class Sqloo
 		if( array_key_exists( $table_name, $this->_table_array ) ) return $this->_table_array[$table_name];
 		if( $this->_load_tables_function !== NULL ) call_user_func( $this->_load_tables_function, $table_name, $this );
 		if( array_key_exists( $table_name, $this->_table_array ) ) return $this->_table_array[$table_name];
-		if( $this->_load_all_tables_function !== NULL ) call_user_func( $this->_load_all_tables_function, $this );
+		$this->getAllTables();
 		if( array_key_exists( $table_name, $this->_table_array ) ) return $this->_table_array[$table_name];
 		trigger_error( "could not load table: ".$table_name, E_USER_ERROR );
 	}
 	
-	/* Database Management */
-	
-	public function getMasterDatabaseName()
+	private function getAllTables()
 	{
-		if( $this->_selected_master_db_name === NULL ) $this->_getMasterResource();
-		return $this->_selected_master_db_name;
-	}
-	
-	private function _getTransactionResource()
-	{
-		static $selected_transaction_resource = NULL;
-		if( $selected_transaction_resource === NULL ) {
-			$selected_connection_array = call_user_func( $this->_master_db_function );
-			if( $selected_connection_array === NULL ) trigger_error( "No master db set", E_USER_ERROR );
-			$selected_transaction_resource = $this->_connectToDb( $selected_connection_array, FALSE );
-			$this->_selected_master_db_name = $selected_connection_array["database_name"];
+		static $all_tables_loaded = FALSE;
+		if( ! $all_tables_loaded ) {
+			if( is_callable( $this->_load_all_tables_function, TRUE ) ) call_user_func( $this->_load_all_tables_function, $this );
+			$all_tables_loaded = TRUE;
 		}
-		return $selected_transaction_resource;
+		return $this->_table_array;
 	}
-	
-	private function _getMasterResource()
+		
+	private function _getDatabaseResource( $type_string )
 	{
-		static $selected_master_resource = NULL;
-		if( $selected_master_resource === NULL ) {
-			$selected_connection_array = call_user_func( $this->_master_db_function );
-			if( $selected_connection_array === NULL ) trigger_error( "No master db set", E_USER_ERROR );
-			$selected_master_resource = $this->_connectToDb( $selected_connection_array );
-			$this->_selected_master_db_name = $selected_connection_array["database_name"];
+		static $database_resource_array = array();
+		if( ! array_key_exists( $type_string, $database_resource_array ) ) {
+			switch( $type_string ) {
+			case "transaction":
+				$permanent_connection = FALSE;
+				break;
+			case "master":
+				$permanent_connection = TRUE;
+				break;
+			case "slave":
+				$permanent_connection = TRUE;
+				break;
+			default:
+				trigger_error( "Bad type_string: ".$type_string, E_USER_ERROR );
+			}
+			$database_configuration_array = $this->_getDatabaseConfiguration( $type_string );
+			if( $permanent_connection )
+				$database_resource = mysql_pconnect( $database_configuration_array["network_address"], $database_configuration_array["username"], $database_configuration_array["password"] );
+			else
+				$database_resource = mysql_connect( $database_configuration_array["network_address"], $database_configuration_array["username"], $database_configuration_array["password"] );
+			
+			if( ( ! $database_resource ) || ( ! mysql_select_db( $database_configuration_array["database_name"], $database_resource ) ) ) trigger_error( mysql_error(), E_USER_ERROR );
+			$database_resource_array[$type_string] = $database_resource;
 		}
-		return $selected_master_resource;
+		return $database_resource_array[$type_string];
 	}
 	
-	private function _getSlaveResource()
+	private function _getDatabaseConfiguration( $type_string )
 	{
-		static $selected_slave_resource = NULL;
-		if ( $selected_slave_resource === NULL ) {
-			if( $this->_slave_db_function === NULL ) return $this->_getMasterResource();
-			$selected_connection_array = call_user_func( $this->_slave_db_function );
-			if( $selected_connection_array === NULL ) return $this->_getMasterResource();
-			$selected_slave_resource = $this->_connectToDb( $selected_connection_array );
+		static $database_configuration_array = array();
+		switch( $type_string ) {
+		case "transaction":
+			$function_name_array = array( $this->_master_db_function );
+			break;
+		case "master":
+			$function_name_array = array( $this->_master_db_function );
+			break;
+		case "slave":
+			$function_name_array = array( $this->_slave_db_function, $this->_master_db_function );
+			break;
+		default:
+			trigger_error( "Bad type_string: ".$type_string, E_USER_ERROR );
 		}
-		return $selected_slave_resource;
-	}
-	
-	private function _connectToDb( $info_array, $permanent_connection = TRUE )
-	{
-		$db = $permanent_connection ? mysql_pconnect( $info_array["network_address"], $info_array["username"], $info_array["password"] ) : mysql_connect( $info_array["network_address"], $info_array["username"], $info_array["password"] );
-		if( ( ! $db ) || ( ! mysql_select_db( $info_array["database_name"], $db ) ) ) trigger_error( mysql_error(), E_USER_ERROR );
-		return $db;
+		
+		while( ! array_key_exists( $type_string, $database_configuration_array ) ) {
+			if( count( $function_name_array ) === 0 ) trigger_error( "No good function for setup database", E_USER_ERROR );
+			$current_function_name = array_shift( $function_name_array );
+			if( is_callable( $current_function_name, TRUE ) ) $database_configuration_array[$type_string] = call_user_func( $current_function_name );
+		}
+		return $database_configuration_array[$type_string];
 	}
 	
 }
