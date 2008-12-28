@@ -93,6 +93,8 @@ class Sqloo
 	
 	/**
 	*	Destruct Function
+	*
+	*	@access private
 	*/
 	
 	public function __destruct()

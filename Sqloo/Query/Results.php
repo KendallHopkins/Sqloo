@@ -37,6 +37,7 @@ class Sqloo_Query_Results
 	*
 	*	@param	resource	Query resource
 	*	@param	resource	If query is buffered or not
+	*	@access	private
 	*/
 	
 	public function __construct( $resource, $buffered = TRUE )
@@ -50,7 +51,7 @@ class Sqloo_Query_Results
 	*
 	*	Releases memory from query
 	*
-	*	@ignore
+	*	@access private
 	*/
 	
 	public function __destruct()

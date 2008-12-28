@@ -26,7 +26,7 @@ THE SOFTWARE.
 
 require_once( "Query/Results.php" );
 
-/** @ignore */
+/** @access private */
 
 class Sqloo_Schema
 {

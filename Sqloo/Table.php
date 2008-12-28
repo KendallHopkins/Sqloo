@@ -32,7 +32,7 @@ class Sqloo_Table
 	public $parent = array();
 	public $index = array();
 	
-	function __construct( $table_name ) { $this->name = $table_name; }
+	public function __construct( $table_name ) { $this->name = $table_name; }
 	
 	public function column( $column_name, $data_type, $allow_null = FALSE, $default_value = NULL )
 	{
