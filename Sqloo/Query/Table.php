@@ -27,9 +27,11 @@ THE SOFTWARE.
 class Sqloo_Query_Table
 {
 	
-	//Join Style
+	/** @ignore */
 	const join_child = 1;
+	/** @ignore */
 	const join_parent = 2;
+	/** @ignore */
 	const join_nm = 3;
 	
 	private $_name;
@@ -105,7 +107,9 @@ class Sqloo_Query_Table
 		return $new_sqloo_query_table;
 	}
 	
+	/** @ignore */
 	public function getTableName() { return $this->_name; }
+	/** @ignore */
 	public function getJoinData() { return $this->_join_data; }
 	
 }

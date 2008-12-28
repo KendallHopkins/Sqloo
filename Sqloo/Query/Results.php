@@ -49,6 +49,8 @@ class Sqloo_Query_Results
 	*	Destruct function
 	*
 	*	Releases memory from query
+	*
+	*	@ignore
 	*/
 	
 	public function __destruct()

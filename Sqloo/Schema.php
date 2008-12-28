@@ -26,6 +26,8 @@ THE SOFTWARE.
 
 require_once( "Query/Results.php" );
 
+/** @ignore */
+
 class Sqloo_Schema
 {
 	
