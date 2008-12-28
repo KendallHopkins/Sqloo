@@ -71,7 +71,7 @@ class Sqloo
 	private $_master_db_function;
 	private $_slave_db_function;
 	private $_load_table_function;
-	private $_load_all_tables_function;
+	private $_list_all_tables_function;
 	private $_table_array = array();
 	private $_transaction_depth = 0;
 	
@@ -80,15 +80,15 @@ class Sqloo
 	*	@param string Function that is called when Sqloo needs a master db configuration, should return a random master configuration
 	*	@param string Function that is called when Sqloo needs a slave db configuration, should return a random slave configuration
 	*	@param string Function that is called when Sqloo needs to access a table that isn't loaded, allows dynamically loaded tables
-	*	@param string Function that is called when Sqloo needs to access all tables, allows dynamically loaded tables
+	*	@param string Function that is called when Sqloo needs a list of all the available tables
 	*/
 	
-	public function __construct( $master_db_function, $slave_db_function = NULL, $load_table_function = NULL, $load_all_tables_function = NULL ) 
+	public function __construct( $master_db_function, $slave_db_function = NULL, $load_table_function = NULL, $list_all_tables_function = NULL ) 
 	{
 		$this->_master_db_function = $master_db_function;
 		$this->_slave_db_function = $slave_db_function;
 		$this->_load_table_function = $load_table_function;
-		$this->_load_all_tables_function = $load_all_tables_function;
+		$this->_list_all_tables_function = $list_all_tables_function;
 	}
 	
 	/**
@@ -165,7 +165,7 @@ class Sqloo
 	public function insert( $table_name, $insert_array, $modifier = NULL )
 	{		
 		//check if we have a "magic" added/modifed field
-		$table_column_array = $this->getTable($table_name)->column;
+		$table_column_array = $this->_getTable($table_name)->column;
 		if( array_key_exists( "added", $table_column_array ) ) $insert_array["added"] = "CURRENT_TIMESTAMP";
 		if( array_key_exists( "modified", $table_column_array ) ) $insert_array["modified"] = "CURRENT_TIMESTAMP";
 		
@@ -193,7 +193,7 @@ class Sqloo
 		if( $id_array_count === 0 ) trigger_error( "id_array of 0 size", E_USER_ERROR );
 				
 		//check if we have a "magic" modifed field
-		if( array_key_exists( "modified", $this->getTable($table_name)->column ) ) $update_array["modified"] = "CURRENT_TIMESTAMP";
+		if( array_key_exists( "modified", $this->_getTable($table_name)->column ) ) $update_array["modified"] = "CURRENT_TIMESTAMP";
 				
 		/* create update string */
 		$update_string = "UPDATE `".$table_name."`\n";
@@ -365,24 +365,33 @@ class Sqloo
 	public function checkSchema()
 	{
 		require_once( "Sqloo/Schema.php" );
-		return Sqloo_Schema::checkSchema( $this->getAllTables(), $this->_getDatabaseResource( "master" ), $this->_getDatabaseConfiguration( "master" ) );
+		return Sqloo_Schema::checkSchema( $this->_getAllTables(), $this->_getDatabaseResource( "master" ), $this->_getDatabaseConfiguration( "master" ) );
 	}
 	
-	private function getTable( $table_name )
+	/* Private Functions */
+	
+	private function _getTable( $table_name )
 	{
-		if( array_key_exists( $table_name, $this->_table_array ) ) return $this->_table_array[$table_name];
-		if( $this->_load_tables_function !== NULL ) call_user_func( $this->_load_tables_function, $table_name, $this );
-		if( array_key_exists( $table_name, $this->_table_array ) ) return $this->_table_array[$table_name];
-		$this->getAllTables();
-		if( array_key_exists( $table_name, $this->_table_array ) ) return $this->_table_array[$table_name];
-		trigger_error( "could not load table: ".$table_name, E_USER_ERROR );
+		if( ! array_key_exists( $table_name, $this->_table_array ) ) $this->_loadTable();
+		return $this->_table_array[$table_name];
 	}
 	
-	private function getAllTables()
+	private function _loadTable( $table_name )
+	{
+		if( ! array_key_exists( $table_name, $this->_table_array ) ) {
+			if( $this->_load_tables_function && is_callable( $this->_load_tables_function, TRUE ) ) call_user_func( $this->_load_tables_function, $table_name, $this );
+			if( ! array_key_exists( $table_name, $this->_table_array ) ) trigger_error( "could not load table: ".$table_name, E_USER_ERROR );
+		}
+	}
+	
+	private function _getAllTables()
 	{
 		static $all_tables_loaded = FALSE;
 		if( ! $all_tables_loaded ) {
-			if( is_callable( $this->_load_all_tables_function, TRUE ) ) call_user_func( $this->_load_all_tables_function, $this );
+			if( is_callable( $this->_list_all_tables_function, TRUE ) ) {
+				$table_array = call_user_func( $this->_list_all_tables_function, $this );
+				foreach( $table_array as $table_name ) $this->_loadTable( $table_name );
+			}
 			$all_tables_loaded = TRUE;
 		}
 		return $this->_table_array;
