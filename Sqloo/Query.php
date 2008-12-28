@@ -162,15 +162,15 @@ class Sqloo_Query
 			$join_data_array = $this->_getJoinData( $this->_root_query_table_class );
 			foreach( $join_data_array as $join_data ) {
 				switch( $join_data["type"] ) {
-				case Sqloo_Query_Table::join_child:
+				case Sqloo_Query_Table::JOIN_CHILD:
 					$from_string .= $join_data["join_type"]." JOIN `".$join_data["table_to"]."` AS `".$join_data["reference_to"]."`\n";
 					$from_string .= "ON `".$join_data["reference_to"]."`.".$join_data["join_column"]." = `".$join_data["reference_from"]."`.id\n";
 					break;
-				case Sqloo_Query_Table::join_parent:
+				case Sqloo_Query_Table::JOIN_PARENT:
 					$from_string .= $join_data["join_type"]." JOIN `".$join_data["table_to"]."` AS `".$join_data["reference_to"]."`\n";
 					$from_string .= "ON `".$join_data["reference_to"]."`.id = `".$join_data["reference_from"]."`.".$join_data["join_column"]."\n";
 					break;
-				case Sqloo_Query_Table::join_nm:
+				case Sqloo_Query_Table::JOIN_NM:
 					$from_string .= $join_data["join_type"]." JOIN `".$join_data["table_nm"]."` AS `".$join_data["reference_nm"]."`\n";
 					$from_string .= "ON `".$join_data["reference_from"]."`.id = `".$join_data["reference_nm"]."`.".$join_data["table_from"]."\n";
 					$from_string .= $join_data["join_type"]." JOIN `".$join_data["table_to"]."` AS `".$join_data["reference_to"]."`\n";

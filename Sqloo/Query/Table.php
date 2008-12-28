@@ -28,11 +28,11 @@ class Sqloo_Query_Table
 {
 	
 	/** @access private */
-	const join_child = 1;
+	const JOIN_CHILD = 1;
 	/** @access private */
-	const join_parent = 2;
+	const JOIN_PARENT = 2;
 	/** @access private */
-	const join_nm = 3;
+	const JOIN_NM = 3;
 	
 	private $_name;
 	private $_reference;
@@ -54,12 +54,12 @@ class Sqloo_Query_Table
 		return $this->_nm_query_table_class;
 	}
 	
-	public function joinChild( $child_table_name, $join_column, $join_type = Sqloo::join_inner )
+	public function joinChild( $child_table_name, $join_column, $join_type = Sqloo::JOIN_INNER )
 	{
 		$new_table_reference = $this->_reference."|".$child_table_name."+".$join_column;
 		$new_sqloo_query_table = new self( $child_table_name, $new_table_reference );
 		$this->_join_data[] = array(
-			"type" => Sqloo_Query_Table::join_child,
+			"type" => Sqloo_Query_Table::JOIN_CHILD,
 			"class" => $new_sqloo_query_table,
 			"table_to" => $child_table_name,
 			"reference_from" => $this->_reference,
@@ -70,12 +70,12 @@ class Sqloo_Query_Table
 		return $new_sqloo_query_table;
 	}
 	
-	public function joinParent( $parent_table_name, $join_column, $join_type = Sqloo::join_inner )
+	public function joinParent( $parent_table_name, $join_column, $join_type = Sqloo::JOIN_INNER )
 	{
 		$new_table_reference = $this->_reference."|".$parent_table_name."++".$join_column;
 		$new_sqloo_query_table = new self( $parent_table_name, $new_table_reference );
 		$this->_join_data[] = array(
-			"type" => Sqloo_Query_Table::join_parent,
+			"type" => Sqloo_Query_Table::JOIN_PARENT,
 			"class" => $new_sqloo_query_table,
 			"table_to" => $parent_table_name,
 			"reference_from" => $this->_reference,
@@ -86,7 +86,7 @@ class Sqloo_Query_Table
 		return $new_sqloo_query_table;
 	}
 	
-	public function joinNM( $table_name, $join_type = Sqloo::join_inner )
+	public function joinNM( $table_name, $join_type = Sqloo::JOIN_INNER )
 	{
 		$nm_table_name = Sqloo::computeNMTableName( $this->_name, $table_name );
 		$nm_table_reference = $this->_reference."|".$nm_table_name;
@@ -94,7 +94,7 @@ class Sqloo_Query_Table
 		$new_nm_sqloo_query_table = new self( $nm_table_name, $nm_table_reference );
 		$new_sqloo_query_table = new self( $table_name, $new_table_reference, $new_nm_sqloo_query_table );
 		$this->_join_data[] = array(
-			"type" => Sqloo_Query_Table::join_nm,
+			"type" => Sqloo_Query_Table::JOIN_NM,
 			"class" => $new_sqloo_query_table,
 			"table_from" => $this->_name,
 			"table_to" => $table_name,

@@ -26,47 +26,46 @@ THE SOFTWARE.
 
 class Sqloo
 {
-	
-	//Table Consts
-	//Parent & Column attributes
-	const allow_null = "allow_null"; //bool
-	const default_value = "default_value"; //mixed, (string, int, float, NULL)
-	
+		
 	//Parent Attributes
-	const parent_table_name = "parent_table_name"; //string
-	const on_delete = "on_delete"; //action - see below
-	const on_update = "on_update"; //action - see below
+	const PARENT_TABLE_NAME = "parent_table_name"; //string
+	const PARENT_ALLOW_NULL = "allow_null"; //bool, alias to COLUMN_ALLOW_NULL
+	const PARENT_DEFAULT_VALUE = "default_value"; //mixed, (string, int, float, NULL), alias to COLUMN_DEFAULT_VALUE
+	const PARENT_ON_DELETE = "parent_on_delete"; //action - see below
+	const PARENT_ON_UPDATE = "parent_on_update"; //action - see below
 	
 	//Column Attributes
-	const data_type = "data_type"; //string
-	const primary_key = "primary_key"; //bool
-	const auto_increment = "auto_increment"; //bool
-	
+	const COLUMN_DATA_TYPE = "column_data_type"; //string
+	const COLUMN_ALLOW_NULL = "allow_null"; //bool
+	const COLUMN_DEFAULT_VALUE = "default_value"; //mixed, (string, int, float, NULL)
+	const COLUMN_PRIMARY_KEY = "column_primary_key"; //bool
+	const COLUMN_AUTO_INCREMENT = "column_auto_increment"; //bool
+			
 	//Index Attributes
-	const column_array = "column_array"; //array
-	const unique = "unique"; //bool
+	const INDEX_COLUMN_ARRAY = "index_column_array"; //array
+	const INDEX_UNIQUE = "index_unique"; //bool
 	
 	//Actions
-	const action_restrict = "RESTRICT";
-	const action_cascade = "CASCADE";
-	const action_set_null = "SET NULL";
-	const action_no_action = "NO ACTION";
+	const ACTION_RESTRICT = "RESTRICT";
+	const ACTION_CASCADE = "CASCADE";
+	const ACTION_SET_NULL = "SET NULL";
+	const ACTION_NO_ACTION = "NO ACTION";
 	
 	//Query Consts
 	//Order Types
-	const order_ascending = "ASC";
-	const order_descending = "DESC";
+	const ORDER_ASCENDING = "ASC";
+	const ORDER_DESCENDING = "DESC";
 	
 	//Join Types
-	const join_inner = "INNER";
-	const join_outer = "OUTER";
-	const join_left = "LEFT";
-	const join_right = "RIGHT";
+	const JOIN_INNER = "INNER";
+	const JOIN_OUTER = "OUTER";
+	const JOIN_LEFT = "LEFT";
+	const JOIN_RIGHT = "RIGHT";
 	
 	//Insert Modifiers
-	const insert_low_priority = "LOW_PRIORITY";
-	const insert_high_priority = "HIGH_PRIORITY";
-	const insert_delayed = "DELAYED";
+	const INSERT_LOW_PRIORITY = "LOW_PRIORITY";
+	const INSERT_HIGH_PRIORITY = "HIGH_PRIORITY";
+	const INSERT_DELAYED = "DELAYED";
 
 	private $_master_db_function;
 	private $_slave_db_function;
@@ -265,16 +264,16 @@ class Sqloo
 		$many_to_many_table = $this->newTable( self::computeNMTableName( $sqloo_table_class_1->name, $sqloo_table_class_2->name ) );
 		$many_to_many_table->parent = array(
 			$sqloo_table_class_1->name => array(
-				Sqloo::parent_table_name => $sqloo_table_class_1->name, 
-				Sqloo::allow_null => FALSE, 
-				Sqloo::on_delete => Sqloo::action_cascade, 
-				Sqloo::on_update => Sqloo::action_cascade
+				Sqloo::PARENT_TABLE_NAME => $sqloo_table_class_1->name, 
+				Sqloo::PARENT_ALLOW_NULL => FALSE, 
+				Sqloo::PARENT_ON_DELETE => Sqloo::ACTION_CASCADE, 
+				Sqloo::PARENT_ON_UPDATE => Sqloo::ACTION_CASCADE
 			),
 			$sqloo_table_class_2->name => array(
-				Sqloo::parent_table_name => $sqloo_table_class_2->name, 
-				Sqloo::allow_null => FALSE, 
-				Sqloo::on_delete => Sqloo::action_cascade, 
-				Sqloo::on_update => Sqloo::action_cascade
+				Sqloo::PARENT_TABLE_NAME => $sqloo_table_class_2->name, 
+				Sqloo::PARENT_ALLOW_NULL => FALSE, 
+				Sqloo::PARENT_ON_DELETE => Sqloo::ACTION_CASCADE, 
+				Sqloo::PARENT_ON_UPDATE => Sqloo::ACTION_CASCADE
 			)
 		);
 		return $many_to_many_table;
