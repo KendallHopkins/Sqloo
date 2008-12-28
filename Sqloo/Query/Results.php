@@ -30,27 +30,62 @@ class Sqloo_Query_Results
 	private $_resource;
 	private $_buffered;
 	
-	function __construct( $resource, $buffered = TRUE )
+	/**
+	*	The constructor function
+	*
+	*	Should not be called outside of the Sqloo framework
+	*
+	*	@param	resource	Query resource
+	*	@param	resource	If query is buffered or not
+	*/
+	
+	public function __construct( $resource, $buffered = TRUE )
 	{
 		$this->_resource = $resource;
 		$this->_buffered = $buffered;
 	}
 	
-	function __destruct()
+	/**
+	*	Destruct function
+	*
+	*	Releases memory from query
+	*/
+	
+	public function __destruct()
 	{
 		mysql_free_result( $this->_resource );
 	}
-
+	
+	/**
+	*	Count of rows returned in query
+	*
+	*	Only works if query is buffered
+	*
+	*	@return	int	Count of rows in query
+	*/
+	
 	public function count()
 	{
 		if( $this->_buffered !== TRUE ) trigger_error( "query is unbuffered, doesn't allow counting", E_USER_ERROR );
 		return mysql_num_rows( $this->_resource );
 	}
-
+	
+	/**
+	*	Fetches a row
+	*
+	*	@return	array	associtated array
+	*/
+	
 	public function fetchRow()
 	{
 		return mysql_fetch_assoc( $this->_resource );
 	}
+	
+	/**
+	*	Fetches an array of rows
+	*
+	*	@return	array	array of associtated array
+	*/
 	
 	public function fetchArray()
 	{

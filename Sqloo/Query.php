@@ -43,14 +43,39 @@ class Sqloo_Query
 		"distinct" => FALSE,
 		"buffered" => TRUE
 	);
-
+	
+	/**
+	*	Construct function
+	*
+	*	This should never be called directly, look at Sqloo->newQuery()
+	*	@param	Sqloo
+	*	@param	array	If this query is a union query this is an array of Sqloo_Query objects
+	*/
+	
 	public function __construct( $sqloo, $union_array = NULL )
 	{
 		$this->_sqloo = $sqloo;
 		$this->_union_array = $union_array;
 	}
+	
+	/**
+	*	Class to string
+	*
+	*	Just calls $this->getQueryString()
+	*	
+	*	@return	string 	Query string
+	*/
 	public function __toString() { return $this->getQueryString(); }
-
+	
+	/**
+	*	Set a root table
+	*
+	*	Only done once
+	*
+	*	@param	string		The root table name
+	*	@return	Sqloo_Table	A Sqloo_Table object
+	*/
+	
 	public function table( $table_name )
 	{
 		if( $this->_root_query_table_class !== NULL ) trigger_error( "Root table is already set", E_USER_ERROR );
@@ -60,11 +85,29 @@ class Sqloo_Query
 		return $this->_root_query_table_class;
 	}
 	
+	/**
+	*	Returns the current value of an attribute of the query
+	*
+	*	Will trigger_error if $key is bad
+	*	
+	*	@param	string	The attribute key
+	*	@return	mixed	The attribute value
+	*/
+	
 	public function __get( $key )
 	{
 		if( ! array_key_exists( $key, $this->_query_data ) ) trigger_error( "Bad key: $key", E_USER_ERROR );
 		return $this->_query_data[$key];
 	}
+	
+	/**
+	*	Sets the current value of an attribute of the query
+	*
+	*	Will trigger_error if $key is bad
+	*	
+	*	@param	string	The attribute key
+	*	@param	mixed	The attribute value
+	*/
 	
 	public function __set( $key, $value )
 	{
@@ -72,11 +115,23 @@ class Sqloo_Query
 		$this->_query_data[$key] = $value;
 	}
 	
+	/**
+	*	Executes the query object
+	*
+	*	@return	Sqloo_Query_Results	Sqloo_Query_Results object
+	*/
+	
 	public function execute()
 	{
 		require_once( "Query/Results.php" );
-		return new Sqloo_Query_Results( $this->_sqloo->query( $this->getQueryString(), TRUE, $this->_query_data["buffered"] ), $this->_query_data["buffered"] ); //We try to run it on the slave if possible
+		return new Sqloo_Query_Results( $this->_sqloo->query( $this->getQueryString(), TRUE, $this->_query_data["buffered"] ), $this->_query_data["buffered"] );
 	}
+	
+	/**
+	*	The query string
+	*
+	*	@return	string	Query string
+	*/
 	
 	public function getQueryString()
 	{
