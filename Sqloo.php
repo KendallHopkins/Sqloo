@@ -26,13 +26,6 @@ THE SOFTWARE.
 
 class Sqloo
 {
-		
-	//Parent Attributes
-	const PARENT_TABLE_NAME = "parent_table_name"; //string
-	const PARENT_ALLOW_NULL = "allow_null"; //bool, alias to COLUMN_ALLOW_NULL
-	const PARENT_DEFAULT_VALUE = "default_value"; //mixed, (string, int, float, NULL), alias to COLUMN_DEFAULT_VALUE
-	const PARENT_ON_DELETE = "parent_on_delete"; //action - see below
-	const PARENT_ON_UPDATE = "parent_on_update"; //action - see below
 	
 	//Column Attributes
 	const COLUMN_DATA_TYPE = "column_data_type"; //string
@@ -40,6 +33,13 @@ class Sqloo
 	const COLUMN_DEFAULT_VALUE = "default_value"; //mixed, (string, int, float, NULL)
 	const COLUMN_PRIMARY_KEY = "column_primary_key"; //bool
 	const COLUMN_AUTO_INCREMENT = "column_auto_increment"; //bool
+
+	//Parent Attributes
+	const PARENT_TABLE_NAME = "parent_table_name"; //string
+	const PARENT_ALLOW_NULL = "allow_null"; //bool, alias to COLUMN_ALLOW_NULL
+	const PARENT_DEFAULT_VALUE = "default_value"; //mixed, (string, int, float, NULL), alias to COLUMN_DEFAULT_VALUE
+	const PARENT_ON_DELETE = "parent_on_delete"; //action - see below
+	const PARENT_ON_UPDATE = "parent_on_update"; //action - see below
 			
 	//Index Attributes
 	const INDEX_COLUMN_ARRAY = "index_column_array"; //array
@@ -199,7 +199,7 @@ class Sqloo
 		/* create update string */
 		$update_string = "UPDATE `".$table_name."`\n";
 		$update_string .= "SET ".self::processKeyValueArray( $update_array )."\n";
-		$update_string .= "WHERE id IN ".self::arrayToIn( $id_array )."\n";				
+		$update_string .= "WHERE id IN (".self::processValueArray( $id_array )."(\n";				
 		$update_string .= "LIMIT ".$id_array_count."\n";
 		$this->query( $update_string );
 	}
@@ -217,7 +217,7 @@ class Sqloo
 		if ( $id_array_count === 0 ) trigger_error( "id_array of 0 size", E_USER_ERROR );
 		
 		$delete_string = "DELETE FROM `".$table_name."`\n";
-		$delete_string .= "WHERE id IN ".self::arrayToIn( $id_array )."\n";
+		$delete_string .= "WHERE id IN (".self::processValueArray( $id_array ).")\n";
 		$delete_string .= "LIMIT ".$id_array_count.";";
 		$this->query( $delete_string );
 	}
@@ -343,12 +343,26 @@ class Sqloo
 		return ( $table_name_1 < $table_name_2 ) ? $table_name_1."-".$table_name_2 : $table_name_2."-".$table_name_1;
 	}
 	
-	static public function arrayToIn( $value_array )
+	/**
+	*	Concatinate and process each item in the array with the commas
+	*
+	*	@param	array 	value array
+	*	@return string	concatinated and processed output string
+	*/
+	
+	static public function processValueArray( $value_array )
 	{
-		$in_string = "(";
-		foreach( $value_array as $value ) $in_string .= self::processVariable( $value ).",";
-		return rtrim( $in_string, "," ).")";
+		$string = "";
+		foreach( $value_array as $value ) $string .= self::processVariable( $value ).",";
+		return rtrim( $string, "," );
 	}
+	
+	/**
+	*	Concatinate and process each item in the array with the commas
+	*
+	*	@param	array 	key value array
+	*	@return string	concatinated and processed output string
+	*/
 	
 	static public function processKeyValueArray( $key_value_array )
 	{
