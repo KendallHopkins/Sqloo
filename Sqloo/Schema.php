@@ -36,42 +36,44 @@ class Sqloo_Schema
 	static private $_column_default_attributes = array( Sqloo::COLUMN_DATA_TYPE => self::id_data_type, Sqloo::COLUMN_ALLOW_NULL => FALSE, Sqloo::COLUMN_DEFAULT_VALUE => NULL, Sqloo::COLUMN_PRIMARY_KEY => FALSE, Sqloo::COLUMN_AUTO_INCREMENT => FALSE );
 	static private $_foreign_key_default_attributes = array( Sqloo::PARENT_ON_DELETE => Sqloo::ACTION_CASCADE, Sqloo::PARENT_ON_UPDATE => Sqloo::ACTION_CASCADE );
 	static private $_alter_table_data;
+	static private $_database_resource;
 		
 	static public function checkSchema( $all_tables, $database_resource, $database_configuration )
 	{
 		//reset alter array
 		self::$_alter_table_data = array();
+		self::$_database_resource = $database_resource;
 		
 		//build query
-		$table_array = self::_getTableArray( $database_resource );
+		$table_array = self::_getTableArray();
 		self::_getTableDifference(
 			$table_array,
 			self::_getTargetTableDataArray( $all_tables )
 		);
 		self::_getColumnDifference(
-			self::_getColumnDataArray( $database_resource, $table_array ),
+			self::_getColumnDataArray( $table_array ),
 			self::_getTargetColumnDataArray( $all_tables )
 		);
 		self::_getIndexDifference(
-			self::_getIndexDataArray( $database_resource, $table_array ),
+			self::_getIndexDataArray( $table_array ),
 			self::_getTargetIndexDataArray( $all_tables )
 		);
 		self::_getForeignKeyDifference(
-			self::_getForeignKeyDataArray( $database_resource, $database_configuration ),
+			self::_getForeignKeyDataArray( $database_configuration ),
 			self::_getTargetForeignKeyDataArray( $all_tables )
 		);
 		
 		//correct the tables
-		return self::_executeAlterQuery( $database_resource );		
+		return self::_executeAlterQuery();		
 	}
 	
 	/* Correction function */
 	
-	static private function _executeAlterQuery( $database_resource )
+	static private function _executeAlterQuery()
 	{
 		$log_string = "";
 		if( count( self::$_alter_table_data ) > 0 ) {
-			self::_query( "SET FOREIGN_KEY_CHECKS=0;", $database_resource );
+			self::_query( "SET FOREIGN_KEY_CHECKS=0;" );
 			foreach( self::$_alter_table_data as $table_name => $table_query_info_array ) {
 				$query_string = "";
 				if( array_key_exists( "create", $table_query_info_array ) ) {
@@ -92,32 +94,32 @@ class Sqloo_Schema
 				} else {
 					$query_string .= ";";
 				}
-				self::_query( $query_string, $database_resource );
+				self::_query( $query_string );
 				$log_string .= $query_string."\n";
 			}
-			self::_query( "SET FOREIGN_KEY_CHECKS=1;", $database_resource );
+			self::_query( "SET FOREIGN_KEY_CHECKS=1;" );
 		}
 		return $log_string;
 	}
 	
 	/* Data Fetching functions */
 	
-	static private function _getTableArray( $database_resource )
+	static private function _getTableArray()
 	{
 		$table_array = array();
-		$query_resource = self::_query( "SHOW TABLES;", $database_resource );
+		$query_resource = self::_query( "SHOW TABLES;" );
 		while( $row = mysql_fetch_assoc( $query_resource ) ) {
 			$table_array[] = end($row);
 		}
 		return $table_array;
 	}
 	
-	static private function _getColumnDataArray( $database_resource, $table_array )
+	static private function _getColumnDataArray( $table_array )
 	{
 		$column_data_array = array();
 		foreach( $table_array as $table_name ) {
 			$column_data = array();
-			$query_resource = self::_query( "SHOW COLUMNS FROM `".$table_name."`;", $database_resource );
+			$query_resource = self::_query( "SHOW COLUMNS FROM `".$table_name."`;" );
 			while( $row = mysql_fetch_assoc( $query_resource ) ) {
 				$column_data[ $row["Field"] ] = array(
 					Sqloo::COLUMN_DATA_TYPE => $row["Type"],
@@ -132,12 +134,12 @@ class Sqloo_Schema
 		return $column_data_array;
 	}
 	
-	static private function _getIndexDataArray( $database_resource, $table_array )
+	static private function _getIndexDataArray( $table_array )
 	{
 		$index_data_array = array();
 		foreach( $table_array as $table_name ) {
 			$index_data = array();
-			$query_resource = self::_query( "SHOW INDEXES FROM `".$table_name."`;", $database_resource );
+			$query_resource = self::_query( "SHOW INDEXES FROM `".$table_name."`;" );
 			while( $row = mysql_fetch_assoc( $query_resource ) ) {
 				if( $row["Key_name"] !== "PRIMARY" ) {
 					$index_data[ $row["Key_name"] ][Sqloo::INDEX_COLUMN_ARRAY][ $row["Seq_in_index"] - 1 ] = $row["Column_name"];
@@ -149,7 +151,7 @@ class Sqloo_Schema
 		return $index_data_array;
 	}
 	
-	static private function _getForeignKeyDataArray( $database_resource, $database_configuration )
+	static private function _getForeignKeyDataArray( $database_configuration )
 	{
 		//This is very very hacky
 		$foreign_key_data_array = array();
@@ -164,9 +166,9 @@ class Sqloo_Schema
 		$query_string .= "WHERE\n";
 		$query_string .= "ke.referenced_table_name IS NOT NULL &&\n";
 		$query_string .= "ke.TABLE_SCHEMA = '".$database_configuration["database_name"]."';";
-		$query_resource = self::_query( $query_string, $database_resource );
+		$query_resource = self::_query( $query_string );
 		while( $row = mysql_fetch_assoc( $query_resource ) ) {
-			$current_attribute_array = self::_getForeignKeyAttributeArray( $database_resource, $row["table_name"], $row["column_name"] );
+			$current_attribute_array = self::_getForeignKeyAttributeArray( $row["table_name"], $row["column_name"] );
 			$foreign_key_data_array[ $row["table_name"] ][ $row["column_name"] ][ $row["constraint_name"] ] = array( 
 				"target_table_name" => $row["referenced_table_name"],
 				"target_column_name" => $row["referenced_column_name"],
@@ -177,10 +179,10 @@ class Sqloo_Schema
 		return $foreign_key_data_array;
 	}
 	
-	static private function _getForeignKeyAttributeArray( $database_resource, $table_name, $column_name )
+	static private function _getForeignKeyAttributeArray( $table_name, $column_name )
 	{
 		$attribute_array = array( Sqloo::PARENT_ON_DELETE => Sqloo::ACTION_NO_ACTION, Sqloo::PARENT_ON_UPDATE => Sqloo::ACTION_NO_ACTION );
-		$query_resource = self::_query( "SHOW CREATE TABLE `".$table_name."`;", $database_resource );
+		$query_resource = self::_query( "SHOW CREATE TABLE `".$table_name."`;" );
 		$create_table_array = mysql_fetch_assoc( $query_resource );
 		$create_table_string_array = explode( "\n", $create_table_array["Create Table"] );
 		foreach( $create_table_string_array as $string )
@@ -441,10 +443,10 @@ class Sqloo_Schema
 		self::$_alter_table_data[$table_name]["list"][] = "DROP FOREIGN KEY `".$foreign_key_name."`";
 	}
 	
-	static private function _query( $query_string, $database_resource )
+	static private function _query( $query_string )
 	{
-		$query_resource = mysql_query( $query_string, $database_resource );
-		if ( ! $query_resource ) trigger_error( mysql_error( $database_resource )."<br>\n".$query_string, E_USER_ERROR );
+		$query_resource = mysql_query( $query_string, self::$_database_resource );
+		if ( ! $query_resource ) trigger_error( mysql_error( self::$_database_resource )."<br>\n".$query_string, E_USER_ERROR );
 		return $query_resource;
 	}
 	
