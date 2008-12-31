@@ -185,22 +185,28 @@ class Sqloo
 	*
 	*	@param	string	Name of the table
 	*	@param	array	Array with the attributes to be modified, IE array( "column_name1" => "value1", "column_name2" => "value2" )
-	*	@param	array	Array of positive int values that are the id's for the rows you want to update
+	*	@param	mixed	Array of positive int values that are the id's for the rows you want to update or where string
 	*/
 	
-	public function update( $table_name, $update_array, $id_array )
-	{
-		$id_array_count = count( $id_array );
-		if( $id_array_count === 0 ) trigger_error( "id_array of 0 size", E_USER_ERROR );
-				
+	public function update( $table_name, $update_array, $id_array_or_where_string )
+	{			
 		//check if we have a "magic" modifed field
 		if( array_key_exists( "modified", $this->_getTable($table_name)->column ) ) $update_array["modified"] = "CURRENT_TIMESTAMP";
 				
 		/* create update string */
 		$update_string = "UPDATE `".$table_name."`\n";
 		$update_string .= "SET ".self::processKeyValueArray( $update_array )."\n";
-		$update_string .= "WHERE id IN (".self::processValueArray( $id_array )."(\n";				
-		$update_string .= "LIMIT ".$id_array_count."\n";
+		
+		if( is_array( $id_array_or_where_string ) ) {
+			$id_array_count = count( $id_array );
+			if( $id_array_count === 0 ) trigger_error( "id_array of 0 size", E_USER_ERROR );
+			$update_string .= "WHERE id IN (".self::processValueArray( $id_array )."(\n";				
+			$update_string .= "LIMIT ".$id_array_count."\n";
+		} else if( is_string( $id_array_or_where_string ) ) {
+			$update_string .= "WHERE ".$id_array_or_where_string.";";
+		} else {
+			trigger_error( "bad input type", E_USER_ERROR );
+		}
 		$this->query( $update_string );
 	}
 	
@@ -208,17 +214,23 @@ class Sqloo
 	*	Delete a list of rows
 	*
 	*	@param	string	Name of the table
-	*	@param	array	Array of positive int values that are the id's for the rows you want to delete
+	*	@param	array	Array of positive int values that are the id's for the rows you want to delete or where string
 	*/
 	
-	public function delete( $table_name, $id_array )
+	public function delete( $table_name, $id_array_or_where_string )
 	{
-		$id_array_count = count( $id_array );
-		if ( $id_array_count === 0 ) trigger_error( "id_array of 0 size", E_USER_ERROR );
-		
 		$delete_string = "DELETE FROM `".$table_name."`\n";
-		$delete_string .= "WHERE id IN (".self::processValueArray( $id_array ).")\n";
-		$delete_string .= "LIMIT ".$id_array_count.";";
+		if( is_array( $id_array_or_where_string ) ) {
+			$id_array_count = count( $id_array );
+			if ( $id_array_count === 0 ) trigger_error( "id_array of 0 size", E_USER_ERROR );
+			$delete_string .= "WHERE id IN (".self::processValueArray( $id_array ).")\n";
+			$delete_string .= "LIMIT ".$id_array_count.";";
+		} else if( is_string( $id_array_or_where_string ) ) {
+			$delete_string .= "WHERE ".$id_array_or_where_string.";";
+		} else {
+			trigger_error( "bad input type", E_USER_ERROR );
+		}
+
 		$this->query( $delete_string );
 	}
 	
@@ -302,6 +314,21 @@ class Sqloo
 		if ( ! $query_resource ) trigger_error( mysql_error( $database_resource )."<br>\n".$query_string, E_USER_ERROR );
 		return $query_resource;
 	}
+
+	/**
+	*	Used to compute the name of the NM between two tables.
+	*
+	*	Order they are put in makes no difference to the output.
+	*
+	*	@param	string	First table name
+	*	@param	string	Second table name
+	*	@return	string	NM Table name
+	*/
+	
+	static public function computeNMTableName( $table_name_1, $table_name_2 )
+	{
+		return ( $table_name_1 < $table_name_2 ) ? $table_name_1."-".$table_name_2 : $table_name_2."-".$table_name_1;
+	}
 	
 	/**
 	*	Escapes values for a query
@@ -326,21 +353,6 @@ class Sqloo
 		case "object": return "(".(string)$value.")";
 		default: trigger_error( "bad imput: ".var_export( $value, TRUE ), E_USER_ERROR );
 		}
-	}
-	
-	/**
-	*	Used to compute the name of the NM between two tables.
-	*
-	*	Order they are put in makes no difference to the output.
-	*
-	*	@param	string	First table name
-	*	@param	string	Second table name
-	*	@return	string	NM Table name
-	*/
-	
-	static public function computeNMTableName( $table_name_1, $table_name_2 )
-	{
-		return ( $table_name_1 < $table_name_2 ) ? $table_name_1."-".$table_name_2 : $table_name_2."-".$table_name_1;
 	}
 	
 	/**
