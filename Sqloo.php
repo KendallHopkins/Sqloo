@@ -51,7 +51,6 @@ class Sqloo
 	const ACTION_SET_NULL = "SET NULL";
 	const ACTION_NO_ACTION = "NO ACTION";
 	
-	//Query Consts
 	//Order Types
 	const ORDER_ASCENDING = "ASC";
 	const ORDER_DESCENDING = "DESC";
@@ -103,6 +102,12 @@ class Sqloo
 			trigger_error( $i." transaction was not close and was rolled back", E_USER_ERROR );
 		}
 	}
+	
+	/**
+	*	Prevent cloning
+	*
+	*	@access private
+	*/
 	
 	private function __clone() { trigger_error( "Clone is not allowed.", E_USER_ERROR ); }
 	
