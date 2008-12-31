@@ -164,7 +164,7 @@ class Sqloo
 	*/
 	
 	public function insert( $table_name, $insert_array, $modifier = NULL )
-	{		
+	{
 		//check if we have a "magic" added/modifed field
 		$table_column_array = $this->_getTable($table_name)->column;
 		if( array_key_exists( "added", $table_column_array ) ) $insert_array["added"] = "CURRENT_TIMESTAMP";
@@ -367,7 +367,7 @@ class Sqloo
 	static public function processKeyValueArray( $key_value_array )
 	{
 		$string = "";
-		foreach( $key_value_array as $key => $value ) $string .= $key."=".$this->processVariable( $value ).",";
+		foreach( $key_value_array as $key => $value ) $string .= $key."=".self::processVariable( $value ).",";
 		return rtrim( $string, "," );
 	}
 	
