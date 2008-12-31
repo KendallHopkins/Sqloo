@@ -158,22 +158,34 @@ class Sqloo
 	*	This function will set the columns "added" and "modified" to the current date if they exist in the table
 	*
 	*	@param	string	Name of the table
-	*	@param	array	Array with the attributes to be inserted, IE array( "column_name1" => "value1", "column_name2" => "value2" )
+	*	@param	mixed	Array with the attributes to be inserted, IE array( "column_name1" => "value1", "column_name2" => "value2" ). It can also be a query, that the output columns are inserted. 
 	*	@param	string	Insert modifier: insert_low_priority, insert_high_priority or insert_delayed
 	*	@return	int		The id of the inserted row
 	*/
 	
-	public function insert( $table_name, $insert_array, $modifier = NULL )
-	{
-		//check if we have a "magic" added/modifed field
-		$table_column_array = $this->_getTable($table_name)->column;
-		if( array_key_exists( "added", $table_column_array ) ) $insert_array["added"] = "CURRENT_TIMESTAMP";
-		if( array_key_exists( "modified", $table_column_array ) ) $insert_array["modified"] = "CURRENT_TIMESTAMP";
-		
+	public function insert( $table_name, $insert_array_or_query, $modifier = NULL )
+	{		
 		$insert_string = "INSERT ";
 		if( $modifier !== NULL ) $insert_string .= $modifier." ";
 		$insert_string .= "INTO `".$table_name."`\n";
-		$insert_string .= "SET ".self::processKeyValueArray( $insert_array )."\n";
+		if( is_array( $insert_array_or_query ) ) {
+			$table_column_array = $this->_getTable($table_name)->column;
+			//check if we have a "magic" added/modifed field
+			if( array_key_exists( "added", $table_column_array ) ) $insert_array["added"] = "CURRENT_TIMESTAMP";
+			if( array_key_exists( "modified", $table_column_array ) ) $insert_array["modified"] = "CURRENT_TIMESTAMP";
+			$insert_string .= "SET ".self::processKeyValueArray( $insert_array )."\n";	
+		} else if( is_string( $insert_array_or_query ) ) {
+			$insert_string .= $insert_array_or_query;
+		} else if( is_object( $insert_array_or_query ) ) {
+			if( get_class( $insert_array_or_query ) === "Sqloo_Query" ) {
+				//check if we have a "magic" added/modifed field
+				if( array_key_exists( "added", $table_column_array ) ) $insert_array_or_query->column = array_merge( $insert_array_or_query->column, array( "added" => "CURRENT_TIMESTAMP" ) );
+				if( array_key_exists( "modified", $table_column_array ) ) $insert_array_or_query->column = array_merge( $insert_array_or_query->column, array( "modified" => "CURRENT_TIMESTAMP" ) );
+			}
+			$insert_string .= $insert_array_or_query;
+		} else {
+			trigger_error( "bad input type", E_USER_ERROR );
+		}
 		$this->query( $insert_string );
 		return mysql_insert_id( $this->_getMasterResource() );
 	}
@@ -339,20 +351,16 @@ class Sqloo
 	
 	static public function processVariable( $value )
 	{
-		switch ( gettype( $value ) ) {
-		case "boolean": return "'".(int)$value."'";
-		case "NULL": return "NULL";
-		case "integer":
-		case "double":
-		case "float": return $value;
-		case "string":
+		if( is_bool( $value ) ) return "'".(int)$value."'";
+		else if( is_null( $value ) ) return "NULL";
+		else if( is_numeric( $value ) ) return $value; 
+		else if( is_string( $value ) ) {
 			switch( $value ) {
 			case "CURRENT_TIMESTAMP": return $value;
 			default: return "'".mysql_escape_string( $value )."'";
 			}
-		case "object": return "(".(string)$value.")";
-		default: trigger_error( "bad imput: ".var_export( $value, TRUE ), E_USER_ERROR );
-		}
+		} else if( is_object( $value ) ) return "(".(string)$value.")";
+		else trigger_error( "bad imput: ".var_export( $value, TRUE ), E_USER_ERROR );
 	}
 	
 	/**
