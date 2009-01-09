@@ -176,9 +176,9 @@ class Sqloo
 		if( is_array( $insert_array_or_query ) ) {
 			$table_column_array = $this->_getTable($table_name)->column;
 			//check if we have a "magic" added/modifed field
-			if( array_key_exists( "added", $table_column_array ) ) $insert_array["added"] = "CURRENT_TIMESTAMP";
-			if( array_key_exists( "modified", $table_column_array ) ) $insert_array["modified"] = "CURRENT_TIMESTAMP";
-			$insert_string .= "SET ".self::processKeyValueArray( $insert_array )."\n";	
+			if( array_key_exists( "added", $table_column_array ) ) $insert_array_or_query["added"] = "CURRENT_TIMESTAMP";
+			if( array_key_exists( "modified", $table_column_array ) ) $insert_array_or_query["modified"] = "CURRENT_TIMESTAMP";
+			$insert_string .= "SET ".self::processKeyValueArray( $insert_array_or_query )."\n";	
 		} else if( is_string( $insert_array_or_query ) ) {
 			$insert_string .= $insert_array_or_query;
 		} else if( is_object( $insert_array_or_query ) ) {
