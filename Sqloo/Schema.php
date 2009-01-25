@@ -297,7 +297,7 @@ class Sqloo_Schema
 				$index_found = FALSE;
 				if( array_key_exists( $table_name, $index_data_array ) ) {
 					foreach( $index_data_array[$table_name] as $index_name => $index_attribute_array ) {
-						if( ( count( array_diff_assoc( $index_attribute_array[Sqloo::INDEX_COLUMN_ARRAY], $target_index_attribute_array[Sqloo::INDEX_COLUMN_ARRAY] ) ) === 0 ) &&
+						if( ! ( count( array_diff_assoc( $index_attribute_array[Sqloo::INDEX_COLUMN_ARRAY], $target_index_attribute_array[Sqloo::INDEX_COLUMN_ARRAY] ) ) ) &&
 							( $index_attribute_array[Sqloo::INDEX_UNIQUE] === $target_index_attribute_array[Sqloo::INDEX_UNIQUE] )
 						) {
 							//we found the index

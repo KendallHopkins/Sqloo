@@ -69,7 +69,7 @@ class Sqloo_Query_Results
 	
 	public function count()
 	{
-		if( $this->_buffered !== TRUE ) trigger_error( "query is unbuffered, doesn't allow counting", E_USER_ERROR );
+		if( ! $this->_buffered ) trigger_error( "query is unbuffered, doesn't allow counting", E_USER_ERROR );
 		return mysql_num_rows( $this->_resource );
 	}
 	

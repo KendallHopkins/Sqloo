@@ -129,7 +129,7 @@ class Sqloo
 	
 	public function rollbackTransaction()
 	{
-		if( $this->_transaction_depth === 0 ) trigger_error( "not in a transaction, didn't rollback", E_USER_ERROR );
+		if( ! $this->_transaction_depth ) trigger_error( "not in a transaction, didn't rollback", E_USER_ERROR );
 		$this->query( "ROLLBACK" );
 		$this->_transaction_depth--;
 	}
@@ -140,7 +140,7 @@ class Sqloo
 	
 	public function commitTransaction()
 	{
-		if( $this->_transaction_depth === 0 ) trigger_error( "not in a transaction, didn't commit", E_USER_ERROR );
+		if( ! $this->_transaction_depth ) trigger_error( "not in a transaction, didn't commit", E_USER_ERROR );
 		$this->query( "COMMIT" );
 		$this->_transaction_depth--;
 	}
@@ -171,7 +171,7 @@ class Sqloo
 	public function insert( $table_name, $insert_array_or_query, $modifier = NULL )
 	{		
 		$insert_string = "INSERT ";
-		if( $modifier !== NULL ) $insert_string .= $modifier." ";
+		if( $modifier ) $insert_string .= $modifier." ";
 		$insert_string .= "INTO `".$table_name."`\n";
 		if( is_array( $insert_array_or_query ) ) {
 			$table_column_array = $this->_getTable($table_name)->column;
@@ -189,7 +189,7 @@ class Sqloo
 			}
 			$insert_string .= $insert_array_or_query;
 		} else {
-			trigger_error( "bad input type", E_USER_ERROR );
+			trigger_error( "bad input type: ".get_type( $insert_array_or_query ), E_USER_ERROR );
 		}
 		$this->query( $insert_string );
 		return mysql_insert_id( $this->_getMasterResource() );
@@ -216,7 +216,7 @@ class Sqloo
 		
 		if( is_array( $id_array_or_where_string ) ) {
 			$id_array_count = count( $id_array );
-			if( $id_array_count === 0 ) trigger_error( "id_array of 0 size", E_USER_ERROR );
+			if( ! $id_array_count ) trigger_error( "id_array of 0 size", E_USER_ERROR );
 			$update_string .= "WHERE id IN (".self::processValueArray( $id_array )."(\n";				
 			$update_string .= "LIMIT ".$id_array_count."\n";
 		} else if( is_string( $id_array_or_where_string ) ) {
@@ -239,7 +239,7 @@ class Sqloo
 		$delete_string = "DELETE FROM `".$table_name."`\n";
 		if( is_array( $id_array_or_where_string ) ) {
 			$id_array_count = count( $id_array );
-			if ( $id_array_count === 0 ) trigger_error( "id_array of 0 size", E_USER_ERROR );
+			if ( ! $id_array_count ) trigger_error( "id_array of 0 size", E_USER_ERROR );
 			$delete_string .= "WHERE id IN (".self::processValueArray( $id_array ).")\n";
 			$delete_string .= "LIMIT ".$id_array_count.";";
 		} else if( is_string( $id_array_or_where_string ) ) {
@@ -484,7 +484,7 @@ class Sqloo
 		}
 		
 		while( ! array_key_exists( $type_string, $database_configuration_array ) ) {
-			if( count( $function_name_array ) === 0 ) trigger_error( "No good function for setup database", E_USER_ERROR );
+			if( ! count( $function_name_array ) ) trigger_error( "No good function for setup database", E_USER_ERROR );
 			$current_function_name = array_shift( $function_name_array );
 			if( is_callable( $current_function_name, TRUE ) ) $database_configuration_array[$type_string] = call_user_func( $current_function_name );
 		}
