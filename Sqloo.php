@@ -65,6 +65,14 @@ class Sqloo
 	const INSERT_LOW_PRIORITY = "LOW_PRIORITY";
 	const INSERT_HIGH_PRIORITY = "HIGH_PRIORITY";
 	const INSERT_DELAYED = "DELAYED";
+	
+	//Query Types (private)
+	/** @access private */
+	const QUERY_TRANSACTION = 1;
+	/** @access private */
+	const QUERY_MASTER = 2;
+	/** @access private */
+	const QUERY_SLAVE = 3;
 
 	private $_master_db_function;
 	private $_slave_db_function;
@@ -163,7 +171,7 @@ class Sqloo
 	*	This function will set the columns "added" and "modified" to the current date if they exist in the table
 	*
 	*	@param	string	Name of the table
-	*	@param	mixed	Array with the attributes to be inserted, IE array( "column_name1" => "value1", "column_name2" => "value2" ). It can also be a query, that the output columns are inserted. 
+	*	@param	mixed	Array with the attributes to be inserted, IE array( "column_name1" => "value1", "column_name2" => "value2" ). It can also be a Sqloo_Query object, that the output columns correspond with the insert table columns. 
 	*	@param	string	Insert modifier: insert_low_priority, insert_high_priority or insert_delayed
 	*	@return	int		The id of the inserted row
 	*/
@@ -173,26 +181,35 @@ class Sqloo
 		$insert_string = "INSERT ";
 		if( $modifier ) $insert_string .= $modifier." ";
 		$insert_string .= "INTO `".$table_name."`\n";
+		$table_column_array = $this->_getTable($table_name)->column;
 		if( is_array( $insert_array_or_query ) ) {
-			$table_column_array = $this->_getTable($table_name)->column;
 			//check if we have a "magic" added/modifed field
-			if( array_key_exists( "added", $table_column_array ) ) $insert_array_or_query["added"] = "CURRENT_TIMESTAMP";
-			if( array_key_exists( "modified", $table_column_array ) ) $insert_array_or_query["modified"] = "CURRENT_TIMESTAMP";
+			if( array_key_exists( "added", $table_column_array ) &&
+				! array_key_exists( "added", $insert_array_or_query )
+			) $insert_array_or_query["added"] = "CURRENT_TIMESTAMP";
+			
+			if( array_key_exists( "modified", $table_column_array ) &&
+				! array_key_exists( "modified", $insert_array_or_query )
+			) $insert_array_or_query["modified"] = "CURRENT_TIMESTAMP";
+			
 			$insert_string .= "SET ".self::processKeyValueArray( $insert_array_or_query )."\n";	
-		} else if( is_string( $insert_array_or_query ) ) {
-			$insert_string .= $insert_array_or_query;
-		} else if( is_object( $insert_array_or_query ) ) {
-			if( get_class( $insert_array_or_query ) === "Sqloo_Query" ) {
-				//check if we have a "magic" added/modifed field
-				if( array_key_exists( "added", $table_column_array ) ) $insert_array_or_query->column = array_merge( $insert_array_or_query->column, array( "added" => "CURRENT_TIMESTAMP" ) );
-				if( array_key_exists( "modified", $table_column_array ) ) $insert_array_or_query->column = array_merge( $insert_array_or_query->column, array( "modified" => "CURRENT_TIMESTAMP" ) );
-			}
-			$insert_string .= $insert_array_or_query;
+		} else if( is_object( $insert_array_or_query ) && ( get_class( $insert_array_or_query ) === "Sqloo_Query" ) ) {
+			if( array_key_exists( "added", $table_column_array ) &&
+				! array_key_exists( "added", $insert_array_or_query->column )
+			) $insert_array_or_query->column["added"] = "CURRENT_TIMESTAMP";
+			
+			if( array_key_exists( "modified", $table_column_array ) &&
+				! array_key_exists( "modified", $insert_array_or_query->column )
+			) $insert_array_or_query->column["modified"] = "CURRENT_TIMESTAMP";
+
+			$insert_string .= " (".implode( ",", array_keys( $insert_array_or_query->column ) ).")\n";
+			$insert_string .= (string)$insert_array_or_query; //transform object to string (function __toString)
 		} else {
 			trigger_error( "bad input type: ".get_type( $insert_array_or_query ), E_USER_ERROR );
 		}
+				
 		$this->query( $insert_string );
-		return mysql_insert_id( $this->_getMasterResource() );
+		return mysql_insert_id( $this->_getDatabaseResource( self::QUERY_MASTER ) );
 	}
 	
 	/**
@@ -320,11 +337,11 @@ class Sqloo
 	public function query( $query_string, $on_slave = FALSE, $buffered = TRUE )
 	{
 		if( $this->_transaction_depth > 0 )
-			$query_type = "transaction";
+			$query_type = self::QUERY_TRANSACTION;
 		else if( ! $on_slave )
-			$query_type = "master";
+			$query_type = self::QUERY_MASTER;
 		else
-			$query_type = "slave";
+			$query_type = self::QUERY_SLAVE;
 		
 		$database_resource = $this->_getDatabaseResource( $query_type );
 		$query_resource = $buffered ? mysql_query( $query_string, $database_resource ) : mysql_unbuffered_query( $query_string, $database_resource );
@@ -405,7 +422,7 @@ class Sqloo
 	public function checkSchema()
 	{
 		require_once( "Sqloo/Schema.php" );
-		return Sqloo_Schema::checkSchema( $this->_getAllTables(), $this->_getDatabaseResource( "master" ), $this->_getDatabaseConfiguration( "master" ) );
+		return Sqloo_Schema::checkSchema( $this->_getAllTables(), $this->_getDatabaseResource( self::QUERY_MASTER ), $this->_getDatabaseConfiguration( self::QUERY_MASTER ) );
 	}
 	
 	/* Private Functions */
@@ -436,19 +453,19 @@ class Sqloo
 		}
 		return $this->_table_array;
 	}
-		
+	
 	private function _getDatabaseResource( $type_string )
 	{
 		static $database_resource_array = array();
 		if( ! array_key_exists( $type_string, $database_resource_array ) ) {
 			switch( $type_string ) {
-			case "transaction":
+			case self::QUERY_TRANSACTION:
 				$permanent_connection = FALSE;
 				break;
-			case "master":
+			case self::QUERY_MASTER:
 				$permanent_connection = TRUE;
 				break;
-			case "slave":
+			case self::QUERY_SLAVE:
 				$permanent_connection = TRUE;
 				break;
 			default:
@@ -470,13 +487,13 @@ class Sqloo
 	{
 		static $database_configuration_array = array();
 		switch( $type_string ) {
-		case "transaction":
+		case self::QUERY_TRANSACTION:
 			$function_name_array = array( $this->_master_db_function );
 			break;
-		case "master":
+		case self::QUERY_MASTER:
 			$function_name_array = array( $this->_master_db_function );
 			break;
-		case "slave":
+		case self::QUERY_SLAVE:
 			$function_name_array = array( $this->_slave_db_function, $this->_master_db_function );
 			break;
 		default:
