@@ -50,7 +50,8 @@ class Sqloo_Query_Table
 	
 	public function getNMTable()
 	{
-		if( $this->_nm_query_table_class === NULL ) trigger_error( "This table wasn't joined using joinNM(), so it doesn't have a NMTable", E_USER_ERROR );
+		if( $this->_nm_query_table_class === NULL )
+			trigger_error( "This table wasn't joined using joinNM(), so it doesn't have a NMTable", E_USER_ERROR );
 		return $this->_nm_query_table_class;
 	}
 	

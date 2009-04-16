@@ -1,4 +1,4 @@
-<?php
+ <?php
 
 /*
 The MIT License
@@ -24,71 +24,19 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-class Sqloo_Query_Results
-{
+/** @access private */
 
-	private $_result_object;
+interface Sqloo_Datatypes
+{
 	
-	/**
-	*	The constructor function
-	*
-	*	Should not be called outside of the Sqloo framework
-	*
-	*	@param	resource	Query resource
-	*	@access	private
-	*/
-	
-	public function __construct( $result_object )
-	{
-		$this->_result_object = $result_object;
-	}
-	
-	/**
-	*	Destruct function
-	*
-	*	Releases memory from query
-	*
-	*	@access private
-	*/
-	
-	public function __destruct()
-	{
-		$this->_result_object->closeCursor();
-	}
-	
-	/**
-	*	Count of rows returned in query
-	*
-	*	@return	int	Count of rows in query
-	*/
-	
-	public function count()
-	{
-		return $this->_result_object->rowCount();
-	}
-	
-	/**
-	*	Fetches a row
-	*
-	*	@return	array	associtated array
-	*/
-	
-	public function fetchRow()
-	{
-		return $this->_result_object->fetch( PDO::FETCH_ASSOC );
-	}
-	
-	/**
-	*	Fetches an array of rows
-	*
-	*	@return	array	array of associtated array
-	*/
-	
-	public function fetchArray()
-	{
-		return $this->_result_object->fetchAll( PDO::FETCH_ASSOC );
-	}
-		
+	//bool, attr = *pointless*
+	//int, attr = array( "size" ) //bytes count
+	//float, attr = array( "precision", "scale" ) //in digits
+	/* In what follows we use these terms: The scale of a numeric is the count of decimal digits in the fractional part, to the right of the decimal point. The precision of a numeric is the total count of significant digits in the whole number, that is, the number of digits to both sides of the decimal point. So the number 23.5141 has a precision of 6 and a scale of 4. Integers can be considered to have a scale of zero. */
+	//string, attr = array( "size" ) //char count
+	//file, attr = array( "size" ) //bytes count
+	static function getTypeString( $attributes_array );
+
 }
 
 ?>

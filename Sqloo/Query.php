@@ -65,7 +65,10 @@ class Sqloo_Query
 	*	
 	*	@return	string 	Query string
 	*/
-	public function __toString() { return $this->getQueryString(); }
+	public function __toString()
+	{
+		return $this->getQueryString();
+	}
 	
 	/**
 	*	Set a root table
@@ -78,8 +81,11 @@ class Sqloo_Query
 	
 	public function table( $table_name )
 	{
-		if( $this->_root_query_table_class !== NULL ) trigger_error( "Root table is already set", E_USER_ERROR );
-		if( $this->_union_array !== NULL ) trigger_error( "This is a union query", E_USER_ERROR );
+		if( $this->_root_query_table_class !== NULL )
+			trigger_error( "Root table is already set", E_USER_ERROR );
+		if( $this->_union_array !== NULL )
+			trigger_error( "This is a union query", E_USER_ERROR );
+		
 		require_once( "Query/Table.php" );
 		$this->_root_query_table_class = new Sqloo_Query_Table( $table_name );
 		return $this->_root_query_table_class;
@@ -96,7 +102,9 @@ class Sqloo_Query
 	
 	public function & __get( $key )
 	{
-		if( ! array_key_exists( $key, $this->_query_data ) ) trigger_error( "Bad key: $key", E_USER_ERROR );
+		if( ! array_key_exists( $key, $this->_query_data ) )
+			trigger_error( "Bad key: $key", E_USER_ERROR );
+		
 		return $this->_query_data[$key];
 	}
 	
@@ -111,7 +119,9 @@ class Sqloo_Query
 	
 	public function __set( $key, $value )
 	{
-		if( ! array_key_exists( $key, $this->_query_data ) ) trigger_error( "Bad key: $key", E_USER_ERROR );
+		if( ! array_key_exists( $key, $this->_query_data ) )
+			trigger_error( "Bad key: $key", E_USER_ERROR );
+		
 		$this->_query_data[$key] = $value;
 	}
 	
@@ -124,7 +134,7 @@ class Sqloo_Query
 	public function execute()
 	{
 		require_once( "Query/Results.php" );
-		return new Sqloo_Query_Results( $this->_sqloo->query( $this->getQueryString(), TRUE, $this->_query_data["buffered"] ), $this->_query_data["buffered"] );
+		return new Sqloo_Query_Results( $this->_sqloo->query( $this->getQueryString(), NULL, TRUE ) );
 	}
 	
 	/**
@@ -144,7 +154,8 @@ class Sqloo_Query
 	{
 		$select_string = $this->_query_data["distinct"] ? "SELECT DISTINCT\n" : "SELECT\n";
 		if( count( $this->_query_data["column"] ) > 0 )
-			foreach( $this->_query_data["column"] as $output_name => $reference ) $select_string .= $reference." AS `".$output_name."`,\n";
+			foreach( $this->_query_data["column"] as $output_name => $reference )
+				$select_string .= $reference." AS `".$output_name."`,\n";
 		else
 			$select_string .= "* \n";
 			
@@ -153,8 +164,10 @@ class Sqloo_Query
 	
 	private function _getFromString()
 	{
-		if( ( $this->_root_query_table_class === NULL ) && ( $this->_union_array === NULL ) ) trigger_error( "Root table is not set", E_USER_ERROR );
-		if( ( $this->_root_query_table_class !== NULL ) && ( $this->_union_array !== NULL ) ) trigger_error( "Nothing set", E_USER_ERROR );
+		if( ( $this->_root_query_table_class === NULL ) && ( $this->_union_array === NULL ) ) 
+			trigger_error( "Root table is not set", E_USER_ERROR );
+		if( ( $this->_root_query_table_class !== NULL ) && ( $this->_union_array !== NULL ) )
+			trigger_error( "Nothing set", E_USER_ERROR );
 		
 		$from_string = "FROM ";
 		if( $this->_root_query_table_class !== NULL ) {
@@ -189,7 +202,8 @@ class Sqloo_Query
 	private function _getJoinData( $query_table_class )
 	{
 		$join_data_array = $query_table_class->getJoinData();
-		foreach( $join_data_array as $join_data ) $join_data_array = array_merge( $join_data_array, $this->_getJoinData( $join_data["class"] ) );
+		foreach( $join_data_array as $join_data )
+			$join_data_array = array_merge( $join_data_array, $this->_getJoinData( $join_data["class"] ) );
 		return $join_data_array;
 	}
 	
@@ -228,7 +242,8 @@ class Sqloo_Query
 		$limit_string = "";
 		if( $this->_query_data["limit"] !== NULL ) {
 			$limit_string .= "LIMIT ".$this->_query_data["limit"];	
-			if ( $this->_query_data["page"] !== NULL ) $limit_string .= " OFFSET ".( $this->_query_data["limit"]*$this->_query_data["page"] );
+			if ( $this->_query_data["page"] !== NULL )
+				$limit_string .= " OFFSET ".( $this->_query_data["limit"]*$this->_query_data["page"] );
 			$limit_string .= "\n";
 		}
 		return $limit_string;		

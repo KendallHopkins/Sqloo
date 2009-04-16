@@ -61,18 +61,19 @@ class Sqloo
 	const JOIN_LEFT = "LEFT";
 	const JOIN_RIGHT = "RIGHT";
 	
-	//Insert Modifiers
-	const INSERT_LOW_PRIORITY = "LOW_PRIORITY";
-	const INSERT_HIGH_PRIORITY = "HIGH_PRIORITY";
-	const INSERT_DELAYED = "DELAYED";
+	//Datatypes
+	const DATATYPE_BOOLEAN = 1;
+	const DATATYPE_INTERGER = 2;
+	const DATATYPE_FLOAT = 3;
+	const DATATYPE_STRING = 4;
+	const DATATYPE_FILE = 5;
+	const DATATYPE_OVERRIDE = 6;
 	
 	//Query Types (private)
 	/** @access private */
-	const QUERY_TRANSACTION = 1;
+	const QUERY_MASTER = 1;
 	/** @access private */
-	const QUERY_MASTER = 2;
-	/** @access private */
-	const QUERY_SLAVE = 3;
+	const QUERY_SLAVE = 2;
 
 	private $_master_db_function;
 	private $_slave_db_function;
@@ -127,8 +128,12 @@ class Sqloo
 	
 	public function beginTransaction()
 	{
+		if( $this->_transaction_depth === 0 )
+			$this->_getDatabaseResource( self::QUERY_MASTER )->beginTransaction();
+		else
+			$this->query( "SAVEPOINT ".$this->_transaction_depth );
+		
 		$this->_transaction_depth++;
-		$this->query( "BEGIN" );
 	}
 	
 	/**
@@ -137,9 +142,14 @@ class Sqloo
 	
 	public function rollbackTransaction()
 	{
-		if( ! $this->_transaction_depth ) trigger_error( "not in a transaction, didn't rollback", E_USER_ERROR );
-		$this->query( "ROLLBACK" );
-		$this->_transaction_depth--;
+		if( $this->_transaction_depth === 0 )
+			trigger_error( "not in a transaction, didn't rollback", E_USER_ERROR );
+		
+		if( --$this->_transaction_depth === 0 )
+			$this->_getDatabaseResource( self::QUERY_MASTER )->rollBack();
+		else
+			$this->query( "ROLLBACK TO SAVEPOINT ".$this->_transaction_depth );
+
 	}
 	
 	/**
@@ -148,9 +158,13 @@ class Sqloo
 	
 	public function commitTransaction()
 	{
-		if( ! $this->_transaction_depth ) trigger_error( "not in a transaction, didn't commit", E_USER_ERROR );
-		$this->query( "COMMIT" );
-		$this->_transaction_depth--;
+		if( $this->_transaction_depth === 0 )
+			trigger_error( "not in a transaction, didn't rollback", E_USER_ERROR );
+		
+		if( --$this->_transaction_depth === 0 )
+			$this->_getDatabaseResource( self::QUERY_MASTER )->commit();
+		else
+			$this->query( "RELEASE SAVEPOINT ".$this->_transaction_depth );
 	}
 	
 	/**
@@ -176,23 +190,37 @@ class Sqloo
 	*	@return	int		The id of the inserted row
 	*/
 	
-	public function insert( $table_name, $insert_array_or_query, $modifier = NULL )
+	public function insert( $table_name, $insert_array_or_query )
 	{		
 		$insert_string = "INSERT ";
-		if( $modifier ) $insert_string .= $modifier." ";
 		$insert_string .= "INTO `".$table_name."`\n";
 		$table_column_array = $this->_getTable($table_name)->column;
 		if( is_array( $insert_array_or_query ) ) {
+			$column_array = array_keys( $insert_array_or_query );
+			$value_array = array();
+			$escaped_value_array = array();
+			
 			//check if we have a "magic" added/modifed field
-			if( array_key_exists( "added", $table_column_array ) &&
-				! array_key_exists( "added", $insert_array_or_query )
-			) $insert_array_or_query["added"] = "CURRENT_TIMESTAMP";
+			foreach( array( "added", "modified" ) as $magic_column ) {
+				if( array_key_exists( $magic_column, $table_column_array ) &&
+					! array_key_exists( $magic_column, $column_array )
+				) {
+					$column_array[] = $magic_column;
+					$escaped_value_array[] = "CURRENT_TIMESTAMP";
+				}
+			}
 			
-			if( array_key_exists( "modified", $table_column_array ) &&
-				! array_key_exists( "modified", $insert_array_or_query )
-			) $insert_array_or_query["modified"] = "CURRENT_TIMESTAMP";
-			
-			$insert_string .= "SET ".self::processKeyValueArray( $insert_array_or_query )."\n";	
+			//build query string
+			foreach( array_values( $insert_array_or_query ) as $value ) {
+				if( is_array( $value ) ) { //string inside an array is "safe"
+					$escaped_value_array = $value[0];
+				} else { //else it's dirty
+					$escaped_value_array[] = "?";
+					$value_array[] = $value;
+				}
+			}
+			$insert_string .= "(".implode( ",", $column_array ).") VALUES(".implode( ",", $escaped_value_array ).")";
+			$this->query( $insert_string, $value_array );
 		} else if( is_object( $insert_array_or_query ) && ( get_class( $insert_array_or_query ) === "Sqloo_Query" ) ) {
 			if( array_key_exists( "added", $table_column_array ) &&
 				! array_key_exists( "added", $insert_array_or_query->column )
@@ -204,12 +232,14 @@ class Sqloo
 
 			$insert_string .= " (".implode( ",", array_keys( $insert_array_or_query->column ) ).")\n";
 			$insert_string .= (string)$insert_array_or_query; //transform object to string (function __toString)
+			
+			$this->query( $insert_string );
 		} else {
 			trigger_error( "bad input type: ".get_type( $insert_array_or_query ), E_USER_ERROR );
 		}
-				
-		$this->query( $insert_string );
-		return mysql_insert_id( $this->_getDatabaseResource( self::QUERY_MASTER ) );
+			
+		
+		return $this->_getDatabaseResource( self::QUERY_MASTER )->lastInsertId();
 	}
 	
 	/**
@@ -224,48 +254,48 @@ class Sqloo
 	
 	public function update( $table_name, $update_array, $id_array_or_where_string )
 	{			
-		//check if we have a "magic" modifed field
-		if( array_key_exists( "modified", $this->_getTable($table_name)->column ) ) $update_array["modified"] = "CURRENT_TIMESTAMP";
-				
 		/* create update string */
 		$update_string = "UPDATE `".$table_name."`\n";
-		$update_string .= "SET ".self::processKeyValueArray( $update_array )."\n";
+		$update_string .= "SET ";
+		
+		//check if we have a "magic" modifed field
+		if( array_key_exists( "modified", $this->_getTable($table_name)->column ) ) $update_string .= "modified=CURRENT_TIMESTAMP,";
+		//add other fields
+		foreach( array_keys( $update_array ) as $key ) $update_string .= $key."=?,";
+		$update_string = substr( $update_string, -1, 0 )."\n";
 		
 		if( is_array( $id_array_or_where_string ) ) {
-			$id_array_count = count( $id_array );
+			$id_array_count = count( $id_array_or_where_string );
 			if( ! $id_array_count ) trigger_error( "id_array of 0 size", E_USER_ERROR );
-			$update_string .= "WHERE id IN (".self::processValueArray( $id_array )."(\n";				
+			$update_string .= "WHERE id IN (".implode( ",", array_fill( 0, count( $id_array_or_where_string ), "?" ) ).")\n";
 			$update_string .= "LIMIT ".$id_array_count."\n";
+			$this->query( $update_string, array_merge( array_values( $id_array_or_where_string ), $id_array_or_where_string ) );
 		} else if( is_string( $id_array_or_where_string ) ) {
 			$update_string .= "WHERE ".$id_array_or_where_string.";";
+			$this->query( $update_string, array_values( $id_array_or_where_string ));
 		} else {
 			trigger_error( "bad input type", E_USER_ERROR );
 		}
-		$this->query( $update_string );
 	}
 	
 	/**
 	*	Delete a list of rows
 	*
 	*	@param	string	Name of the table
-	*	@param	array	Array of positive int values that are the id's for the rows you want to delete or where string
+	*	@param	array	Array of positive int values that are the id's for the rows you want to delete
 	*/
 	
-	public function delete( $table_name, $id_array_or_where_string )
+	public function delete( $table_name, $id_array )
 	{
 		$delete_string = "DELETE FROM `".$table_name."`\n";
 		if( is_array( $id_array_or_where_string ) ) {
 			$id_array_count = count( $id_array );
 			if ( ! $id_array_count ) trigger_error( "id_array of 0 size", E_USER_ERROR );
-			$delete_string .= "WHERE id IN (".self::processValueArray( $id_array ).")\n";
-			$delete_string .= "LIMIT ".$id_array_count.";";
-		} else if( is_string( $id_array_or_where_string ) ) {
-			$delete_string .= "WHERE ".$id_array_or_where_string.";";
+			$delete_string .= "WHERE id IN (".array_fill( 0, count( $id_array_or_where_string ), "?" ).");";
+			$this->query( $delete_string, array_values( $id_array_or_where_string ) );
 		} else {
 			trigger_error( "bad input type", E_USER_ERROR );
 		}
-
-		$this->query( $delete_string );
 	}
 	
 	/**
@@ -330,23 +360,34 @@ class Sqloo
 	*	
 	*	@param	string		Query string
 	*	@param	bool		Set if the query can be run on a slave. If in a transaction, this is ignored.
-	*	@param	bool		Set if the query should be buffered. Unbuffered queries have advantages and disadvantages.
-	*	@return	resource	Resource from mysql_query or mysql_unbuffered_query.
+	*	@param	array		Array of parameters, these will be escaped
+	*	@return	resource	Resource from PDO::query().
 	*/
 	
-	public function query( $query_string, $on_slave = FALSE, $buffered = TRUE )
+	public function query( $query_string, $parameters_array = NULL, $on_slave = FALSE )
 	{
-		if( $this->_transaction_depth > 0 )
-			$query_type = self::QUERY_TRANSACTION;
-		else if( ! $on_slave )
+		if( ( $this->_transaction_depth > 0 ) || ( ! $on_slave ) )
 			$query_type = self::QUERY_MASTER;
 		else
 			$query_type = self::QUERY_SLAVE;
 		
 		$database_resource = $this->_getDatabaseResource( $query_type );
-		$query_resource = $buffered ? mysql_query( $query_string, $database_resource ) : mysql_unbuffered_query( $query_string, $database_resource );
-		if ( ! $query_resource ) trigger_error( mysql_error( $database_resource )."<br>\n".$query_string, E_USER_ERROR );
-		return $query_resource;
+		try {
+			if( $parameters_array ) {
+				$prepare_object = $database_resource->prepare( $query_string );
+				$query_object = $prepare_object->execute( $parameters_array );				
+			} else {
+				$query_object = $database_resource->query( $query_string );
+			}
+		} catch ( PDOException $exception ) {
+			trigger_error( $exception->getMessage()."<br>\n".$query_string, E_USER_ERROR );
+		}			
+		
+		if( ! $query_object ) {
+			$error_array = $parameters_array ? $prepare_object->errorInfo() : $database_resource->errorInfo();
+			trigger_error( ( array_key_exists( 2, $error_array ) ? $error_array[2] : $error_array[0] )."<br>\n".$query_string, E_USER_ERROR );				
+		}
+		return $query_object;
 	}
 
 	/**
@@ -365,52 +406,27 @@ class Sqloo
 	}
 	
 	/**
-	*	Escapes values for a query
-	*	
-	*	@param	mixed	The value to be escaped, if a class object is passed it will attempt to be transformed into a string.
-	*	@return	string	Processed value
-	*/
-	
-	static public function processVariable( $value )
-	{
-		if( is_bool( $value ) ) return "'".(int)$value."'";
-		else if( is_null( $value ) ) return "NULL";
-		else if( is_numeric( $value ) ) return $value; 
-		else if( is_string( $value ) ) {
-			switch( $value ) {
-			case "CURRENT_TIMESTAMP": return $value;
-			default: return "'".mysql_escape_string( $value )."'";
-			}
-		} else if( is_object( $value ) ) return "(".(string)$value.")";
-		else trigger_error( "bad imput: ".var_export( $value, TRUE ), E_USER_ERROR );
-	}
-	
-	/**
-	*	Concatinate and process each item in the array with the commas
+	*	Get's the datatype for a variable type.
 	*
-	*	@param	array 	value array
-	*	@return string	concatinated and processed output string
+	*	@param	array	key-value attrubute array
+	*	@return string	type string
 	*/
 	
-	static public function processValueArray( $value_array )
+	public function getTypeString( $attributes_array )
 	{
-		$string = "";
-		foreach( $value_array as $value ) $string .= self::processVariable( $value ).",";
-		return rtrim( $string, "," );
-	}
-	
-	/**
-	*	Concatinate and process each item in the array with the commas
-	*
-	*	@param	array 	key value array
-	*	@return string	concatinated and processed output string
-	*/
-	
-	static public function processKeyValueArray( $key_value_array )
-	{
-		$string = "";
-		foreach( $key_value_array as $key => $value ) $string .= $key."=".self::processVariable( $value ).",";
-		return rtrim( $string, "," );
+		$database_configuration = $this->_getDatabaseConfiguration( self::QUERY_MASTER );
+		require_once( "Sqloo/Datatypes.php" );
+		switch( $database_configuration["type"] ) {
+		case "mysql": 
+			require_once( "Sqloo/Datatypes/Mysql.php" );
+			return Sqloo_Datatypes_Mysql::getTypeString( $attributes_array );
+			break;
+		case "pgsql": 
+			require_once( "Sqloo/Datatypes/Postgres.php" );
+			return Sqloo_Datatypes_Postgres::getTypeString( $attributes_array );
+			break;
+		default: trigger_error( "Unknown database: ".$database_configuration["type"], E_USER_ERROR );
+		}
 	}
 	
 	/**
@@ -421,8 +437,31 @@ class Sqloo
 	
 	public function checkSchema()
 	{
+		/*
+		//BETTER WAY
+		$database_configuration = $this->_getDatabaseConfiguration( self::QUERY_MASTER );
+		switch( $database_configuration["type"] ) {
+		case "mysql": $file_name = "Mysql"; break;
+		case "pgsql": $file_name = "PostgreSQL"; break;
+		}
+		$class_name = "Sqloo_Schema_".$file_name;
+		require_once( "Sqloo/Schema/".$file_name.".php" );
+		return $class_name::checkSchema( $this->_getAllTables(), $this->_getDatabaseResource( self::QUERY_MASTER ), $this->_getDatabaseConfiguration( self::QUERY_MASTER ) );
+		*/
+		
+		//UGLY pre 5.3 way
+		$database_configuration = $this->_getDatabaseConfiguration( self::QUERY_MASTER );
 		require_once( "Sqloo/Schema.php" );
-		return Sqloo_Schema::checkSchema( $this->_getAllTables(), $this->_getDatabaseResource( self::QUERY_MASTER ), $this->_getDatabaseConfiguration( self::QUERY_MASTER ) );
+		switch( $database_configuration["type"] ) {
+		case "mysql": 
+			require_once( "Sqloo/Schema/Mysql.php" );
+			return Sqloo_Schema_Mysql::checkSchema( $this );
+			break;
+		case "pgsql": 
+			require_once( "Sqloo/Schema/Postgres.php" );
+			return Sqloo_Schema_Postgres::checkSchema( $this );
+			break;
+		}
 	}
 	
 	/* Private Functions */
@@ -436,12 +475,14 @@ class Sqloo
 	private function _loadTable( $table_name )
 	{
 		if( ! array_key_exists( $table_name, $this->_table_array ) ) {
-			if( $this->_load_tables_function && is_callable( $this->_load_tables_function, TRUE ) ) call_user_func( $this->_load_tables_function, $table_name, $this );
-			if( ! array_key_exists( $table_name, $this->_table_array ) ) trigger_error( "could not load table: ".$table_name, E_USER_ERROR );
+			if( $this->_load_tables_function && is_callable( $this->_load_tables_function, TRUE ) )
+				call_user_func( $this->_load_tables_function, $table_name, $this );
+			if( ! array_key_exists( $table_name, $this->_table_array ) )
+				trigger_error( "could not load table: ".$table_name, E_USER_ERROR );
 		}
 	}
 	
-	private function _getAllTables()
+	public function _getAllTables()
 	{
 		static $all_tables_loaded = FALSE;
 		if( ! $all_tables_loaded ) {
@@ -454,58 +495,50 @@ class Sqloo
 		return $this->_table_array;
 	}
 	
-	private function _getDatabaseResource( $type_string )
+	public function _getDatabaseResource( $type_id )
 	{
-		static $database_resource_array = array();
-		if( ! array_key_exists( $type_string, $database_resource_array ) ) {
-			switch( $type_string ) {
-			case self::QUERY_TRANSACTION:
-				$permanent_connection = FALSE;
-				break;
-			case self::QUERY_MASTER:
-				$permanent_connection = TRUE;
-				break;
-			case self::QUERY_SLAVE:
-				$permanent_connection = TRUE;
-				break;
-			default:
-				trigger_error( "Bad type_string: ".$type_string, E_USER_ERROR );
-			}
-			$database_configuration_array = $this->_getDatabaseConfiguration( $type_string );
-			if( $permanent_connection )
-				$database_resource = mysql_pconnect( $database_configuration_array["network_address"], $database_configuration_array["username"], $database_configuration_array["password"] );
-			else
-				$database_resource = mysql_connect( $database_configuration_array["network_address"], $database_configuration_array["username"], $database_configuration_array["password"] );
+		static $database_object_array = array();
+		if( ! array_key_exists( $type_id, $database_object_array ) ) {
+			$configuration_array = $this->_getDatabaseConfiguration( $type_id );
 			
-			if( ( ! $database_resource ) || ( ! mysql_select_db( $database_configuration_array["database_name"], $database_resource ) ) ) trigger_error( mysql_error(), E_USER_ERROR );
-			$database_resource_array[$type_string] = $database_resource;
+			$database_object_array[$type_id] = new PDO( 
+				$configuration_array["type"].":dbname=".$configuration_array["name"].";host=".$configuration_array["address"], 
+				$configuration_array["username"], 
+				$configuration_array["password"], 
+				array(
+					PDO::ATTR_PERSISTENT => TRUE,
+					PDO::ATTR_TIMEOUT => 15
+				) 
+			);
 		}
-		return $database_resource_array[$type_string];
+		return $database_object_array[$type_id];
 	}
 	
-	private function _getDatabaseConfiguration( $type_string )
+	public function _getDatabaseConfiguration( $type_id )
 	{
 		static $database_configuration_array = array();
-		switch( $type_string ) {
-		case self::QUERY_TRANSACTION:
-			$function_name_array = array( $this->_master_db_function );
-			break;
-		case self::QUERY_MASTER:
-			$function_name_array = array( $this->_master_db_function );
-			break;
-		case self::QUERY_SLAVE:
-			$function_name_array = array( $this->_slave_db_function, $this->_master_db_function );
-			break;
-		default:
-			trigger_error( "Bad type_string: ".$type_string, E_USER_ERROR );
+		if( ! array_key_exists( $type_id, $database_configuration_array ) ) {
+			switch( $type_id ) {
+			case self::QUERY_MASTER:
+				$function_name_array = array( $this->_master_db_function );
+				break;
+			case self::QUERY_SLAVE:
+				$function_name_array = array( $this->_slave_db_function, $this->_master_db_function );
+				break;
+			default:
+				trigger_error( "Bad type_id: ".$type_string, E_USER_ERROR );
+			}
+			
+			do {
+				if( ! count( $function_name_array ) ) 
+					trigger_error( "No good function for setup database", E_USER_ERROR );
+				
+				$current_function_name = array_shift( $function_name_array );
+				if( is_callable( $current_function_name, TRUE ) ) 
+					$database_configuration_array[$type_id] = call_user_func( $current_function_name );
+			} while( ! array_key_exists( $type_id, $database_configuration_array ) );
 		}
-		
-		while( ! array_key_exists( $type_string, $database_configuration_array ) ) {
-			if( ! count( $function_name_array ) ) trigger_error( "No good function for setup database", E_USER_ERROR );
-			$current_function_name = array_shift( $function_name_array );
-			if( is_callable( $current_function_name, TRUE ) ) $database_configuration_array[$type_string] = call_user_func( $current_function_name );
-		}
-		return $database_configuration_array[$type_string];
+		return $database_configuration_array[$type_id];
 	}
 	
 }

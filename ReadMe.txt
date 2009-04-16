@@ -21,3 +21,5 @@ Subfeatures:
     -Full support for mysql transactions
 -Database Pool
     -Automatically distributes queries between master and slave databases
+    
+Query changed, ($query_string, *$parameter_Array*, $on_slave)
