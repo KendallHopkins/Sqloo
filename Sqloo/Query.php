@@ -128,13 +128,14 @@ class Sqloo_Query
 	/**
 	*	Executes the query object
 	*
+	*	@param	array	key-value array of escaped values
 	*	@return	Sqloo_Query_Results	Sqloo_Query_Results object
 	*/
 	
-	public function execute()
+	public function execute( $parameters_array = NULL )
 	{
 		require_once( "Query/Results.php" );
-		return new Sqloo_Query_Results( $this->_sqloo->query( $this->getQueryString(), NULL, TRUE ) );
+		return new Sqloo_Query_Results( $this->_sqloo->query( $this->getQueryString(), $parameters_array, TRUE ) );
 	}
 	
 	/**

@@ -35,7 +35,7 @@ class Sqloo_Schema_Mysql extends Sqloo_Schema
 	{
 		$log_string = "";
 		if( count( self::$_alter_table_data ) > 0 ) {
-			self::_query( "SET FOREIGN_KEY_CHECKS=0;" );
+			self::$_sqloo->query( "SET FOREIGN_KEY_CHECKS=0;" );
 			foreach( self::$_alter_table_data as $table_name => $table_query_info_array ) {
 				$query_string = "";
 				if( array_key_exists( "create", $table_query_info_array ) ) {
@@ -56,10 +56,10 @@ class Sqloo_Schema_Mysql extends Sqloo_Schema
 				} else {
 					$query_string .= ";";
 				}
-				self::_query( $query_string );
+				self::$_sqloo->query( $query_string );
 				$log_string .= $query_string."\n";
 			}
-			self::_query( "SET FOREIGN_KEY_CHECKS=1;" );
+			self::$_sqloo->query( "SET FOREIGN_KEY_CHECKS=1;" );
 		}
 		return $log_string;
 	}
@@ -69,7 +69,7 @@ class Sqloo_Schema_Mysql extends Sqloo_Schema
 	static protected function _getTableArray()
 	{
 		$table_array = array();
-		$query_object = self::_query( "SHOW TABLES;" );
+		$query_object = self::$_sqloo->query( "SHOW TABLES;" );
 		while( $row = $query_object->fetch( PDO::FETCH_ASSOC ) )
 			$table_array[] = end($row);
 		return $table_array;
@@ -80,7 +80,7 @@ class Sqloo_Schema_Mysql extends Sqloo_Schema
 		$column_data_array = array();
 		foreach( $table_array as $table_name ) {
 			$column_data = array();
-			$query_resource = self::_query( "SHOW COLUMNS FROM `".$table_name."`;" );
+			$query_resource = self::$_sqloo->query( "SHOW COLUMNS FROM `".$table_name."`;" );
 			while( $row = $query_resource->fetch( PDO::FETCH_ASSOC ) ) {
 				$column_data[ $row["Field"] ] = array(
 					Sqloo::COLUMN_DATA_TYPE => $row["Type"],
@@ -100,7 +100,7 @@ class Sqloo_Schema_Mysql extends Sqloo_Schema
 		$index_data_array = array();
 		foreach( $table_array as $table_name ) {
 			$index_data = array();
-			$query_resource = self::_query( "SHOW INDEXES FROM `".$table_name."`;" );
+			$query_resource = self::$_sqloo->query( "SHOW INDEXES FROM `".$table_name."`;" );
 			while( $row = $query_resource->fetch( PDO::FETCH_ASSOC ) ) {
 				if( $row["Key_name"] !== "PRIMARY" ) {
 					$index_data[ $row["Key_name"] ][Sqloo::INDEX_COLUMN_ARRAY][ $row["Seq_in_index"] - 1 ] = $row["Column_name"];
@@ -126,7 +126,7 @@ class Sqloo_Schema_Mysql extends Sqloo_Schema
 		$query_string .= "WHERE\n";
 		$query_string .= "ke.referenced_table_name IS NOT NULL &&\n";
 		$query_string .= "ke.TABLE_SCHEMA = '".self::$_database_configuration["name"]."';";
-		$query_resource = self::_query( $query_string );
+		$query_resource = self::$_sqloo->query( $query_string );
 		while( $row = $query_resource->fetch( PDO::FETCH_ASSOC ) ) {
 			$current_attribute_array = self::_getForeignKeyAttributeArray( $row["table_name"], $row["column_name"] );
 			$foreign_key_data_array[ $row["table_name"] ][ $row["column_name"] ][ $row["constraint_name"] ] = array( 
@@ -142,7 +142,7 @@ class Sqloo_Schema_Mysql extends Sqloo_Schema
 	static private function _getForeignKeyAttributeArray( $table_name, $column_name )
 	{
 		$attribute_array = array( Sqloo::PARENT_ON_DELETE => Sqloo::ACTION_NO_ACTION, Sqloo::PARENT_ON_UPDATE => Sqloo::ACTION_NO_ACTION );
-		$query_resource = self::_query( "SHOW CREATE TABLE `".$table_name."`;" );
+		$query_resource = self::$_sqloo->query( "SHOW CREATE TABLE `".$table_name."`;" );
 		$create_table_array = $query_resource->fetch( PDO::FETCH_ASSOC );
 		$create_table_string_array = explode( "\n", $create_table_array["Create Table"] );
 		foreach( $create_table_string_array as $string )
@@ -164,7 +164,7 @@ class Sqloo_Schema_Mysql extends Sqloo_Schema
 	
 	static protected function _removeTable( $table_name )
 	{
-		//self::_sqloo->query( "DROP TABLE `".$table_name."`;" );
+		self::$_sqloo->query( "DROP TABLE `".$table_name."`;" );
 	}
 	
 	static protected function _addColumn( $table_name, $column_name, $column_attributes )
@@ -205,11 +205,6 @@ class Sqloo_Schema_Mysql extends Sqloo_Schema
 	static protected function _dropIndex( $table_name, $index_name )
 	{
 		self::$_alter_table_data[$table_name]["list"][] = "DROP INDEX `".$index_name."`";
-	}
-	
-	static protected function _getIndexName( $index_attribute_array )
-	{
-		return (string)rand();
 	}
 	
 	static protected function _addForeignKey( $table_name, $column_name, $foreign_key_attribute_array )

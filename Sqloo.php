@@ -221,7 +221,7 @@ class Sqloo
 			}
 			$insert_string .= "(".implode( ",", $column_array ).") VALUES(".implode( ",", $escaped_value_array ).")";
 			$this->query( $insert_string, $value_array );
-		} else if( is_object( $insert_array_or_query ) && ( get_class( $insert_array_or_query ) === "Sqloo_Query" ) ) {
+		} else if( is_object( $insert_array_or_query ) && ( $insert_array_or_query instanceof Sqloo_Query ) ) {
 			if( array_key_exists( "added", $table_column_array ) &&
 				! array_key_exists( "added", $insert_array_or_query->column )
 			) $insert_array_or_query->column["added"] = "CURRENT_TIMESTAMP";
@@ -370,7 +370,6 @@ class Sqloo
 			$query_type = self::QUERY_MASTER;
 		else
 			$query_type = self::QUERY_SLAVE;
-		
 		$database_resource = $this->_getDatabaseResource( $query_type );
 		try {
 			if( $parameters_array ) {
@@ -382,10 +381,10 @@ class Sqloo
 		} catch ( PDOException $exception ) {
 			trigger_error( $exception->getMessage()."<br>\n".$query_string, E_USER_ERROR );
 		}			
-		
+
 		if( ! $query_object ) {
 			$error_array = $parameters_array ? $prepare_object->errorInfo() : $database_resource->errorInfo();
-			trigger_error( ( array_key_exists( 2, $error_array ) ? $error_array[2] : $error_array[0] )."<br>\n".$query_string, E_USER_ERROR );				
+			trigger_error( ( array_key_exists( 2, $error_array ) ? $error_array[2] : $error_array[0] )."<br>\n".$query_string, E_USER_ERROR );
 		}
 		return $query_object;
 	}
@@ -468,15 +467,15 @@ class Sqloo
 	
 	private function _getTable( $table_name )
 	{
-		if( ! array_key_exists( $table_name, $this->_table_array ) ) $this->_loadTable();
+		if( ! array_key_exists( $table_name, $this->_table_array ) ) $this->_loadTable( $table_name );
 		return $this->_table_array[$table_name];
 	}
 	
 	private function _loadTable( $table_name )
 	{
 		if( ! array_key_exists( $table_name, $this->_table_array ) ) {
-			if( $this->_load_tables_function && is_callable( $this->_load_tables_function, TRUE ) )
-				call_user_func( $this->_load_tables_function, $table_name, $this );
+			if( $this->_load_table_function && is_callable( $this->_load_table_function, TRUE ) )
+				call_user_func( $this->_load_table_function, $table_name, $this );
 			if( ! array_key_exists( $table_name, $this->_table_array ) )
 				trigger_error( "could not load table: ".$table_name, E_USER_ERROR );
 		}

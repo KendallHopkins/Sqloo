@@ -70,7 +70,7 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 			//change columns
 			if( ! array_key_exists( "action", $table_array ) ) { //alter table
 				foreach( $table_array["column"] as $column_name => $column_array ) {
-					print_r( $column_array );					
+					//print_r( $column_array );					
 				}
 			} else if( $table_array["action"] === "add" ) { //create table
 				$query_string = "CREATE TABLE \"".$table_name."\" (\n";
@@ -124,7 +124,7 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 		
 		print_r( $query_array );
 		foreach( $query_array as $query_string ) {
-			self::_query( $query_string );
+			self::$_sqloo->query( $query_string );
 		}
 	}
 	
@@ -136,9 +136,10 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 		$query_string = "SELECT table_name\n";
 		$query_string .= "FROM information_schema.tables\n";
 		$query_string .= "WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema');";
-		$query_object = self::_query( $query_string );
-		while( $row = $query_object->fetch( PDO::FETCH_ASSOC ) )
-			$table_array[] = end($row);
+		$query_object = self::$_sqloo->query( $query_string );
+		while( $row = $query_object->fetch( PDO::FETCH_ASSOC ) ) {
+			$table_array[] = end($row);			
+		}
 		return $table_array;
 	}
 	
@@ -151,7 +152,7 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 			$query_string .= "FROM information_schema.columns\n";
 			$query_string .= "WHERE table_name = '".$table_name."'\n";
 			$query_string .= "ORDER BY ordinal_position;";
-			$query_resource = self::_query( $query_string );
+			$query_resource = self::$_sqloo->query( $query_string );
 			while( $row = $query_resource->fetch( PDO::FETCH_ASSOC ) ) {
 				$column_data[ $row["column_name"] ] = array(
 					Sqloo::COLUMN_DATA_TYPE => $row["data_type"],
@@ -172,7 +173,7 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 			$query_string_2 .= "JOIN pg_class as index_class ON index_class.oid = index.indexrelid\n";
 			$query_string_2 .= "WHERE table_class.relname = '".$table_name."'\n";
 			$query_string_2 .= "AND index.indisprimary = 't';";
-			$query_resource_2 = self::_query( $query_string_2 );
+			$query_resource_2 = self::$_sqloo->query( $query_string_2 );
 			$row_2 = $query_resource_2->fetch( PDO::FETCH_ASSOC );
 			if( $row_2 ) {
 				$indkey_array = explode( " ", $row_2["indkey_string"] );
@@ -182,7 +183,7 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 					$query_string_3 .= "JOIN pg_class as table_class ON column_class.attrelid = table_class.oid\n";
 					$query_string_3 .= "WHERE table_class.relname = '".$table_name."'";
 					$query_string_3 .= "AND column_class.attnum = ".((int)$indkey);
-					$query_resource_3 = self::_query( $query_string_3 );
+					$query_resource_3 = self::$_sqloo->query( $query_string_3 );
 					$row_3 = $query_resource_3->fetch( PDO::FETCH_ASSOC );
 					if( $row_3 && array_key_exists( $row_3["attname"], $column_data ) )
 						$column_data[ $row_3["attname"] ][Sqloo::COLUMN_PRIMARY_KEY] = TRUE;
@@ -209,7 +210,7 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 			$query_string .= "JOIN pg_class as index_class ON index_class.oid = index.indexrelid\n";
 			$query_string .= "WHERE table_class.relname = '".$table_name."'\n";
 			$query_string .= "AND index.indisprimary = 'f';";
-			$query_resource = self::_query( $query_string );
+			$query_resource = self::$_sqloo->query( $query_string );
 			while( $row = $query_resource->fetch( PDO::FETCH_ASSOC ) ) {
 				$key_name = $row["index_name"];
 				$is_unique = $row["is_unique"];
@@ -221,7 +222,7 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 					$query_string_2 .= "JOIN pg_class as table_class ON column_class.attrelid = table_class.oid\n";
 					$query_string_2 .= "WHERE table_class.relname = '".$table_name."'";
 					$query_string_2 .= "AND column_class.attnum = ".((int)$indkey);
-					$query_resource_2 = self::_query( $query_string_2 );
+					$query_resource_2 = self::$_sqloo->query( $query_string_2 );
 					$row_2 = $query_resource_2->fetch( PDO::FETCH_ASSOC );
 					if( $row_2 && array_key_exists( "attname", $row_2 ) )
 						$column_array[] = $row_2["attname"];
@@ -252,7 +253,7 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 		$query_string .= "LEFT JOIN pg_attribute a2 ON a2.attnum = ANY( c.confkey ) AND c.confrelid = a2.attrelid\n";
 		$query_string .= "WHERE c.contype = 'f'\n";
 		$query_string .= "AND c.confrelid > 0;";
-		$query_resource = self::_query( $query_string );
+		$query_resource = self::$_sqloo->query( $query_string );
 		while( $row = $query_resource->fetch( PDO::FETCH_ASSOC ) ) {
 			$foreign_key_data_array[ $row["table_name"] ][ $row["column_name"] ][ $row["constraint_name"] ] = array( 
 				"target_table_name" => $row["referenced_table_name"],

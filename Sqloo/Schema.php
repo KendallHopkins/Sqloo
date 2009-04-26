@@ -71,7 +71,11 @@ class Sqloo_Schema
 		);
 		
 		//correct the tables
-		return static::_executeAlterQuery();		
+		self::$_sqloo->beginTransaction();
+		$log_string = static::_executeAlterQuery();		
+		self::$_sqloo->commitTransaction();
+		
+		return $log_string;
 	}
 	
 	/* Target Array functions */
@@ -251,11 +255,6 @@ class Sqloo_Schema
 		foreach( $target_table_array as $table_name => $place_holder ) {
 			static::_addTable( $table_name );
 		}
-	}
-	
-	static protected function _query( $query_string )
-	{
-		return self::$_sqloo->query( $query_string );
 	}
 	
 	/* Schema changes */
