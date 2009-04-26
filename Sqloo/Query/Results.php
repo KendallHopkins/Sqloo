@@ -3,7 +3,7 @@
 /*
 The MIT License
 
-Copyright (c) 2008 Kendall Hopkins
+Copyright (c) 2009 Kendall Hopkins
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
