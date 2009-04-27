@@ -107,7 +107,8 @@ class Sqloo
 	public function __destruct()
 	{
 		if( $this->_transaction_depth > 0 ) {
-			for( $i = 0; $i < $this->_transaction_depth; $i++ ) $this->rollbackTransaction();
+			for( $i = 0; $i < $this->_transaction_depth; $i++ )
+				$this->rollbackTransaction();
 			trigger_error( $i." transaction was not close and was rolled back", E_USER_ERROR );
 		}
 	}
@@ -192,9 +193,8 @@ class Sqloo
 	
 	public function insert( $table_name, $insert_array_or_query )
 	{		
-		$insert_string = "INSERT ";
-		$insert_string .= "INTO `".$table_name."`\n";
-		$table_column_array = $this->_getTable($table_name)->column;
+		$insert_string = "INSERT INTO `".$table_name."`\n";
+		$table_column_array = $this->_getTable( $table_name )->column;
 		if( is_array( $insert_array_or_query ) ) {
 			$column_array = array_keys( $insert_array_or_query );
 			$value_array = array();
@@ -222,13 +222,11 @@ class Sqloo
 			$insert_string .= "(".implode( ",", $column_array ).") VALUES(".implode( ",", $escaped_value_array ).")";
 			$this->query( $insert_string, $value_array );
 		} else if( is_object( $insert_array_or_query ) && ( $insert_array_or_query instanceof Sqloo_Query ) ) {
-			if( array_key_exists( "added", $table_column_array ) &&
-				! array_key_exists( "added", $insert_array_or_query->column )
-			) $insert_array_or_query->column["added"] = "CURRENT_TIMESTAMP";
-			
-			if( array_key_exists( "modified", $table_column_array ) &&
-				! array_key_exists( "modified", $insert_array_or_query->column )
-			) $insert_array_or_query->column["modified"] = "CURRENT_TIMESTAMP";
+			//check if we have a "magic" added/modifed field
+			foreach( array( "added", "modified" ) as $magic_column ) {
+				if( array_key_exists( $magic_column, $table_column_array ) && ( ! array_key_exists( $magic_column, $insert_array_or_query->column ) ) ) 
+					$insert_array_or_query->column[$magic_column] = "CURRENT_TIMESTAMP";
+			}
 
 			$insert_string .= " (".implode( ",", array_keys( $insert_array_or_query->column ) ).")\n";
 			$insert_string .= (string)$insert_array_or_query; //transform object to string (function __toString)
@@ -238,7 +236,6 @@ class Sqloo
 			trigger_error( "bad input type: ".get_type( $insert_array_or_query ), E_USER_ERROR );
 		}
 			
-		
 		return $this->_getDatabaseResource( self::QUERY_MASTER )->lastInsertId();
 	}
 	
@@ -401,7 +398,7 @@ class Sqloo
 	
 	static public function computeNMTableName( $table_name_1, $table_name_2 )
 	{
-		return ( $table_name_1 < $table_name_2 ) ? $table_name_1."-".$table_name_2 : $table_name_2."-".$table_name_1;
+		return ( (string)$table_name_1 < (string)$table_name_2 ) ? $table_name_1."-".$table_name_2 : $table_name_2."-".$table_name_1;
 	}
 	
 	/**
@@ -436,8 +433,6 @@ class Sqloo
 	
 	public function checkSchema()
 	{
-		/*
-		//BETTER WAY
 		$database_configuration = $this->_getDatabaseConfiguration( self::QUERY_MASTER );
 		switch( $database_configuration["type"] ) {
 		case "mysql": $file_name = "Mysql"; break;
@@ -445,22 +440,7 @@ class Sqloo
 		}
 		$class_name = "Sqloo_Schema_".$file_name;
 		require_once( "Sqloo/Schema/".$file_name.".php" );
-		return $class_name::checkSchema( $this->_getAllTables(), $this->_getDatabaseResource( self::QUERY_MASTER ), $this->_getDatabaseConfiguration( self::QUERY_MASTER ) );
-		*/
-		
-		//UGLY pre 5.3 way
-		$database_configuration = $this->_getDatabaseConfiguration( self::QUERY_MASTER );
-		require_once( "Sqloo/Schema.php" );
-		switch( $database_configuration["type"] ) {
-		case "mysql": 
-			require_once( "Sqloo/Schema/Mysql.php" );
-			return Sqloo_Schema_Mysql::checkSchema( $this );
-			break;
-		case "pgsql": 
-			require_once( "Sqloo/Schema/Postgres.php" );
-			return Sqloo_Schema_Postgres::checkSchema( $this );
-			break;
-		}
+		return $class_name::checkSchema( $this );
 	}
 	
 	/* Private Functions */
@@ -475,7 +455,7 @@ class Sqloo
 	{
 		if( ! array_key_exists( $table_name, $this->_table_array ) ) {
 			if( $this->_load_table_function && is_callable( $this->_load_table_function, TRUE ) )
-				call_user_func( $this->_load_table_function, $table_name, $this );
+				$this->_load_table_function( $table_name, $this );
 			if( ! array_key_exists( $table_name, $this->_table_array ) )
 				trigger_error( "could not load table: ".$table_name, E_USER_ERROR );
 		}
@@ -485,10 +465,10 @@ class Sqloo
 	{
 		static $all_tables_loaded = FALSE;
 		if( ! $all_tables_loaded ) {
-			if( is_callable( $this->_list_all_tables_function, TRUE ) ) {
-				$table_array = call_user_func( $this->_list_all_tables_function, $this );
-				foreach( $table_array as $table_name ) $this->_loadTable( $table_name );
-			}
+			if( is_callable( $this->_list_all_tables_function, TRUE ) )
+				foreach( $this->_list_all_tables_function( $this ) as $table_name )
+					$this->_loadTable( $table_name );
+			
 			$all_tables_loaded = TRUE;
 		}
 		return $this->_table_array;
@@ -529,12 +509,11 @@ class Sqloo
 			}
 			
 			do {
-				if( ! count( $function_name_array ) ) 
-					trigger_error( "No good function for setup database", E_USER_ERROR );
+				if( ! count( $function_name_array ) ) trigger_error( "No good function for setup database", E_USER_ERROR );
 				
-				$current_function_name = array_shift( $function_name_array );
-				if( is_callable( $current_function_name, TRUE ) ) 
-					$database_configuration_array[$type_id] = call_user_func( $current_function_name );
+				$function_name = array_shift( $function_name_array );
+				if( is_callable( $function_name, TRUE ) ) $database_configuration_array[$type_id] = $function_name();
+				else trigger_error( "Non-existing function was referenced: ".$function_name, E_USER_WARNING );
 			} while( ! array_key_exists( $type_id, $database_configuration_array ) );
 		}
 		return $database_configuration_array[$type_id];
