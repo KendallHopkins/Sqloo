@@ -132,7 +132,7 @@ class Sqloo
 		if( $this->_transaction_depth === 0 )
 			$this->_getDatabaseResource( self::QUERY_MASTER )->beginTransaction();
 		else
-			$this->query( "SAVEPOINT ".$this->_transaction_depth );
+			$this->query( "SAVEPOINT s".$this->_transaction_depth );
 		
 		$this->_transaction_depth++;
 	}
@@ -149,7 +149,7 @@ class Sqloo
 		if( --$this->_transaction_depth === 0 )
 			$this->_getDatabaseResource( self::QUERY_MASTER )->rollBack();
 		else
-			$this->query( "ROLLBACK TO SAVEPOINT ".$this->_transaction_depth );
+			$this->query( "ROLLBACK TO SAVEPOINT s".$this->_transaction_depth );
 
 	}
 	
@@ -165,7 +165,7 @@ class Sqloo
 		if( --$this->_transaction_depth === 0 )
 			$this->_getDatabaseResource( self::QUERY_MASTER )->commit();
 		else
-			$this->query( "RELEASE SAVEPOINT ".$this->_transaction_depth );
+			$this->query( "RELEASE SAVEPOINT s".$this->_transaction_depth );
 	}
 	
 	/**
@@ -457,7 +457,7 @@ class Sqloo
 	private function _loadTable( $table_name )
 	{
 		if( ! array_key_exists( $table_name, $this->_table_array ) ) {
-			if( $this->_load_table_function && is_callable( $this->_load_table_function, TRUE ) )
+			if( $this->_load_table_function && is_callable( $this->_load_table_function ) )
 				$this->_load_table_function( $table_name, $this );
 			if( ! array_key_exists( $table_name, $this->_table_array ) )
 				trigger_error( "could not load table: ".$table_name, E_USER_ERROR );
@@ -468,7 +468,7 @@ class Sqloo
 	{
 		static $all_tables_loaded = FALSE;
 		if( ! $all_tables_loaded ) {
-			if( is_callable( $this->_list_all_tables_function, TRUE ) )
+			if( is_callable( $this->_list_all_tables_function ) )
 				foreach( $this->_list_all_tables_function( $this ) as $table_name )
 					$this->_loadTable( $table_name );
 			
@@ -515,7 +515,7 @@ class Sqloo
 				if( ! count( $function_name_array ) ) trigger_error( "No good function for setup database", E_USER_ERROR );
 				
 				$function_name = array_shift( $function_name_array );
-				if( is_callable( $function_name, TRUE ) )
+				if( is_callable( $function_name ) )
 					$database_configuration_array[$type_id] = $function_name();
 				else
 					trigger_error( "Non-existing function was referenced: ".$function_name, E_USER_WARNING );

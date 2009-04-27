@@ -32,9 +32,30 @@ require_once( "Datatypes.php" );
 class Sqloo_Schema
 {
 	
-	static private $_id_column_attributes = array( Sqloo::COLUMN_PRIMARY_KEY => TRUE, Sqloo::COLUMN_AUTO_INCREMENT => TRUE );
-	static private $_column_default_attributes = array( Sqloo::COLUMN_DATA_TYPE => array( "type" => Sqloo::DATATYPE_INTERGER, "size" => 4 ), Sqloo::COLUMN_ALLOW_NULL => FALSE, Sqloo::COLUMN_DEFAULT_VALUE => NULL, Sqloo::COLUMN_PRIMARY_KEY => FALSE, Sqloo::COLUMN_AUTO_INCREMENT => FALSE );
-	static private $_foreign_key_default_attributes = array( Sqloo::PARENT_ON_DELETE => Sqloo::ACTION_CASCADE, Sqloo::PARENT_ON_UPDATE => Sqloo::ACTION_CASCADE );
+	static private $_column_default_attributes = array(
+		Sqloo::COLUMN_DATA_TYPE => array(
+			"type" => Sqloo::DATATYPE_INTERGER,
+			"size" => 4
+		),
+		Sqloo::COLUMN_ALLOW_NULL => FALSE,
+		Sqloo::COLUMN_DEFAULT_VALUE => NULL,
+		Sqloo::COLUMN_PRIMARY_KEY => FALSE,
+		Sqloo::COLUMN_AUTO_INCREMENT => FALSE
+	);
+		
+	static private $_id_column_attributes = array(
+		Sqloo::COLUMN_PRIMARY_KEY => TRUE,
+		Sqloo::COLUMN_AUTO_INCREMENT => TRUE
+	);
+	
+	static private $_index_default_attributes = array(
+		Sqloo::INDEX_UNIQUE => FALSE
+	);
+	
+	static private $_foreign_key_default_attributes = array(
+		Sqloo::PARENT_ON_DELETE => Sqloo::ACTION_CASCADE,
+		Sqloo::PARENT_ON_UPDATE => Sqloo::ACTION_CASCADE
+	);
 	
 	static protected $_sqloo;
 	static protected $_database_object;
@@ -93,12 +114,26 @@ class Sqloo_Schema
 	{
 		$target_column_data_array = array();
 		foreach( $all_tables as $table_name => $table_class ) {
-			$target_column_data_array[$table_name]["id"] = array_merge( self::$_column_default_attributes, self::$_id_column_attributes ); //every table has an id column
+			//every table has an id column
+			$target_column_data_array[$table_name]["id"] = array_merge(
+				self::$_column_default_attributes,
+				self::$_id_column_attributes
+			);
+			
+			//add normal attribute columns
 			foreach( $table_class->column as $column_name => $column_attribute_array ) {
-				$target_column_data_array[$table_name][$column_name] = array_merge( self::$_column_default_attributes, $column_attribute_array );		
+				$target_column_data_array[$table_name][$column_name] = array_merge(
+					self::$_column_default_attributes,
+					$column_attribute_array
+				);		
 			}
+			
+			//add join (fk) columns
 			foreach( $table_class->parent as $join_column_name => $parent_attribute_array ) {
-				$target_column_data_array[$table_name][$join_column_name] = array_merge( self::$_column_default_attributes, $parent_attribute_array );  //this allows the user to override attributes if they desire			
+				$target_column_data_array[$table_name][$join_column_name] = array_merge(
+					self::$_column_default_attributes,
+					$parent_attribute_array
+				);		
 			}
 		}
 		return $target_column_data_array;
@@ -109,10 +144,16 @@ class Sqloo_Schema
 		$target_index_data_array = array();
 		foreach( $all_tables as $table_name => $table_class ) {
 			foreach( $table_class->index as $index_attribute_array ) {
-				$target_index_data_array[ $table_name ][] = $index_attribute_array;		
+				$target_index_data_array[ $table_name ][] = array_merge(
+					self::$_index_default_attributes,
+					$index_attribute_array
+				);		
 			}
 			foreach( $table_class->parent as $join_column_name => $parent_attribute_array ) {
-				$target_index_data_array[ $table_name ][] = array( Sqloo::INDEX_COLUMN_ARRAY => array( $join_column_name ), Sqloo::INDEX_UNIQUE => FALSE );		
+				$target_index_data_array[ $table_name ][] = array(
+					Sqloo::INDEX_COLUMN_ARRAY => array( $join_column_name ),
+					Sqloo::INDEX_UNIQUE => FALSE
+				);		
 			}
 		}
 		return $target_index_data_array;
@@ -123,11 +164,14 @@ class Sqloo_Schema
 		$target_foreign_key_data_array = array();
 		foreach( $all_tables as $table_name => $table_class ) {
 			foreach( $table_class->parent as $join_column_name => $parent_attribute_array ) {
-				$target_foreign_key_data_array[ $table_name ][ $join_column_name ] = array(
-					"target_table_name" => $parent_attribute_array[Sqloo::PARENT_TABLE_NAME],
-					"target_column_name" => "id",
-					Sqloo::PARENT_ON_DELETE => $parent_attribute_array[Sqloo::PARENT_ON_DELETE],
-					Sqloo::PARENT_ON_UPDATE => $parent_attribute_array[Sqloo::PARENT_ON_UPDATE]
+				$target_foreign_key_data_array[ $table_name ][ $join_column_name ] = array_merge( 
+					self::$_foreign_key_default_attributes,
+					array(
+						"target_table_name" => $parent_attribute_array[Sqloo::PARENT_TABLE_NAME],
+						"target_column_name" => "id",
+						Sqloo::PARENT_ON_DELETE => $parent_attribute_array[Sqloo::PARENT_ON_DELETE],
+						Sqloo::PARENT_ON_UPDATE => $parent_attribute_array[Sqloo::PARENT_ON_UPDATE]
+					)
 				);	
 			}
 		}
