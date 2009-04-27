@@ -437,8 +437,11 @@ class Sqloo
 		switch( $database_configuration["type"] ) {
 		case "mysql": $file_name = "Mysql"; break;
 		case "pgsql": $file_name = "PostgreSQL"; break;
+		default: trigger_error( "Bad database type: ".$database_configuration["type"], E_USER_ERROR ); break;
 		}
+
 		$class_name = "Sqloo_Schema_".$file_name;
+		require_once( "Sqloo/Schema.php" );
 		require_once( "Sqloo/Schema/".$file_name.".php" );
 		return $class_name::checkSchema( $this );
 	}
@@ -512,8 +515,10 @@ class Sqloo
 				if( ! count( $function_name_array ) ) trigger_error( "No good function for setup database", E_USER_ERROR );
 				
 				$function_name = array_shift( $function_name_array );
-				if( is_callable( $function_name, TRUE ) ) $database_configuration_array[$type_id] = $function_name();
-				else trigger_error( "Non-existing function was referenced: ".$function_name, E_USER_WARNING );
+				if( is_callable( $function_name, TRUE ) )
+					$database_configuration_array[$type_id] = $function_name();
+				else
+					trigger_error( "Non-existing function was referenced: ".$function_name, E_USER_WARNING );
 			} while( ! array_key_exists( $type_id, $database_configuration_array ) );
 		}
 		return $database_configuration_array[$type_id];
