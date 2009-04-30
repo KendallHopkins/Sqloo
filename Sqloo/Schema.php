@@ -91,8 +91,13 @@ abstract class Sqloo_Schema
 		
 		//correct the tables
 		self::$_sqloo->beginTransaction();
-		$log_string = static::_executeAlterQuery();		
-		self::$_sqloo->commitTransaction();
+		try {
+			$log_string = static::_executeAlterQuery();		
+			self::$_sqloo->commitTransaction();
+		} catch( Exception $e ) {
+			self::$_sqloo->rollbackTransaction();
+			$log_string = "Schema Change Failed, Rolling back."
+		}
 		
 		return $log_string;
 	}
