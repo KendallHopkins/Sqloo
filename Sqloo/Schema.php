@@ -29,7 +29,7 @@ require_once( "Datatypes.php" );
 
 /** @access private */
 
-class Sqloo_Schema
+abstract class Sqloo_Schema
 {
 	
 	static private $_column_default_attributes = array(
@@ -58,16 +58,14 @@ class Sqloo_Schema
 	);
 	
 	static protected $_sqloo;
-	static protected $_database_object;
 	static protected $_database_configuration;
 	static protected $_alter_table_data;
 		
 	static public function checkSchema( $sqloo )
 	{
 		self::$_sqloo = $sqloo;
-		$all_tables = self::$_sqloo->_getAllTables();
-		self::$_database_object = self::$_sqloo->_getDatabaseResource( Sqloo::QUERY_MASTER );
 		self::$_database_configuration = self::$_sqloo->_getDatabaseConfiguration( Sqloo::QUERY_MASTER );
+		$all_tables = self::$_sqloo->_getAllTables();
 		
 		//reset alter array
 		self::$_alter_table_data = array();
