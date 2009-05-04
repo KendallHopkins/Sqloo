@@ -39,9 +39,9 @@ class Sqloo_Schema_Mysql extends Sqloo_Schema
 			foreach( self::$_alter_table_data as $table_name => $table_query_info_array ) {
 				$query_string = "";
 				if( array_key_exists( "create", $table_query_info_array ) ) {
-					$query_string .= "CREATE TABLE `".$table_name."`(\n";
+					$query_string .= "CREATE TABLE \"".$table_name."\"(\n";
 				} else {
-					$query_string .= "ALTER TABLE `".$table_name."`\n";
+					$query_string .= "ALTER TABLE \"".$table_name."\"\n";
 				}
 				
 				$query_string .= implode( ",\n", $table_query_info_array["list"] );
@@ -80,7 +80,7 @@ class Sqloo_Schema_Mysql extends Sqloo_Schema
 		$column_data_array = array();
 		foreach( $table_array as $table_name ) {
 			$column_data = array();
-			$query_resource = self::$_sqloo->query( "SHOW COLUMNS FROM `".$table_name."`;" );
+			$query_resource = self::$_sqloo->query( "SHOW COLUMNS FROM \"".$table_name."\";" );
 			while( $row = $query_resource->fetch( PDO::FETCH_ASSOC ) ) {
 				$column_data[ $row["Field"] ] = array(
 					Sqloo::COLUMN_DATA_TYPE => $row["Type"],
@@ -100,7 +100,7 @@ class Sqloo_Schema_Mysql extends Sqloo_Schema
 		$index_data_array = array();
 		foreach( $table_array as $table_name ) {
 			$index_data = array();
-			$query_resource = self::$_sqloo->query( "SHOW INDEXES FROM `".$table_name."`;" );
+			$query_resource = self::$_sqloo->query( "SHOW INDEXES FROM \"".$table_name."\";" );
 			while( $row = $query_resource->fetch( PDO::FETCH_ASSOC ) ) {
 				if( $row["Key_name"] !== "PRIMARY" ) {
 					$index_data[ $row["Key_name"] ][Sqloo::INDEX_COLUMN_ARRAY][ $row["Seq_in_index"] - 1 ] = $row["Column_name"];
@@ -142,11 +142,11 @@ class Sqloo_Schema_Mysql extends Sqloo_Schema
 	static private function _getForeignKeyAttributeArray( $table_name, $column_name )
 	{
 		$attribute_array = array( Sqloo::PARENT_ON_DELETE => Sqloo::ACTION_NO_ACTION, Sqloo::PARENT_ON_UPDATE => Sqloo::ACTION_NO_ACTION );
-		$query_resource = self::$_sqloo->query( "SHOW CREATE TABLE `".$table_name."`;" );
+		$query_resource = self::$_sqloo->query( "SHOW CREATE TABLE \"".$table_name."\";" );
 		$create_table_array = $query_resource->fetch( PDO::FETCH_ASSOC );
 		$create_table_string_array = explode( "\n", $create_table_array["Create Table"] );
 		foreach( $create_table_string_array as $string )
-			if( substr_count( $string, "FOREIGN KEY (`".$column_name."`)" ) > 0 )
+			if( substr_count( $string, "FOREIGN KEY (\"".$column_name."\")" ) > 0 )
 				foreach( array( Sqloo::PARENT_ON_DELETE => "ON DELETE", Sqloo::PARENT_ON_UPDATE => "ON UPDATE" ) as $type_id => $type_string )
 					foreach( array( Sqloo::ACTION_RESTRICT, Sqloo::ACTION_CASCADE, Sqloo::ACTION_SET_NULL, Sqloo::ACTION_NO_ACTION ) as $action )
 						if( preg_match( "/".$type_string." ".$action."/i", $string ) )
@@ -164,23 +164,23 @@ class Sqloo_Schema_Mysql extends Sqloo_Schema
 	
 	static protected function _removeTable( $table_name )
 	{
-		self::$_sqloo->query( "DROP TABLE `".$table_name."`;" );
+		self::$_sqloo->query( "DROP TABLE \"".$table_name."\";" );
 	}
 	
 	static protected function _addColumn( $table_name, $column_name, $column_attributes )
 	{
-		self::$_alter_table_data[$table_name]["list"][] = "ADD COLUMN `".$column_name."` ".self::_buildFullTypeString( $column_attributes );
-		if( $column_attributes[Sqloo::COLUMN_PRIMARY_KEY] ) self::$_alter_table_data[$table_name]["list"][] = "ADD PRIMARY KEY (`".$column_name."`)";	}
+		self::$_alter_table_data[$table_name]["list"][] = "ADD COLUMN \"".$column_name."\" ".self::_buildFullTypeString( $column_attributes );
+		if( $column_attributes[Sqloo::COLUMN_PRIMARY_KEY] ) self::$_alter_table_data[$table_name]["list"][] = "ADD PRIMARY KEY (\"".$column_name."\")";	}
 	
 	static protected function _removeColumn( $table_name, $column_name )
 	{
-		self::$_alter_table_data[$table_name]["list"][] = "DROP COLUMN `".$column_name."`";
+		self::$_alter_table_data[$table_name]["list"][] = "DROP COLUMN \"".$column_name."\"";
 	}
 	
 	static protected function _alterColumn( $table_name, $column_name, $target_attribute_array, $current_attribute_array )
 	{	
-		self::$_alter_table_data[$table_name]["list"][] = "MODIFY COLUMN `".$column_name."` ".self::_buildFullTypeString( $target_attribute_array );
-		if( $target_attribute_array[Sqloo::COLUMN_PRIMARY_KEY] && ( ! $current_attribute_array[Sqloo::COLUMN_PRIMARY_KEY] ) ) self::$_alter_table_data[$table_name]["list"][] = "ADD PRIMARY KEY (`".$column_name."`)";
+		self::$_alter_table_data[$table_name]["list"][] = "MODIFY COLUMN \"".$column_name."\" ".self::_buildFullTypeString( $target_attribute_array );
+		if( $target_attribute_array[Sqloo::COLUMN_PRIMARY_KEY] && ( ! $current_attribute_array[Sqloo::COLUMN_PRIMARY_KEY] ) ) self::$_alter_table_data[$table_name]["list"][] = "ADD PRIMARY KEY (\"".$column_name."\")";
 		if( ( ! $target_attribute_array[Sqloo::COLUMN_PRIMARY_KEY] ) && $current_attribute_array[Sqloo::COLUMN_PRIMARY_KEY] ) self::$_alter_table_data[$table_name]["list"][] = "DROP PRIMARY KEY";
 	}
 	
@@ -198,23 +198,23 @@ class Sqloo_Schema_Mysql extends Sqloo_Schema
 		$index_name = self::_getIndexName( $index_attribute_array );
 		$query_string = "ADD ";
 		if( $index_attribute_array[Sqloo::INDEX_UNIQUE] ) $query_string .= "UNIQUE ";
-		$query_string .= "INDEX `".$index_name."` ( `".implode( "`,`", $index_attribute_array[Sqloo::INDEX_COLUMN_ARRAY] )."` )";
+		$query_string .= "INDEX \"".$index_name."\" ( \"".implode( "\",\"", $index_attribute_array[Sqloo::INDEX_COLUMN_ARRAY] )."\" )";
 		self::$_alter_table_data[$table_name]["list"][] = $query_string;
 	}
 	
 	static protected function _dropIndex( $table_name, $index_name )
 	{
-		self::$_alter_table_data[$table_name]["list"][] = "DROP INDEX `".$index_name."`";
+		self::$_alter_table_data[$table_name]["list"][] = "DROP INDEX \"".$index_name."\"";
 	}
 	
 	static protected function _addForeignKey( $table_name, $column_name, $foreign_key_attribute_array )
 	{
-		self::$_alter_table_data[$table_name]["list"][] = "ADD FOREIGN KEY ( `".$column_name."` ) REFERENCES `".$foreign_key_attribute_array["target_table_name"]."` ( `".$foreign_key_attribute_array["target_column_name"]."` ) ON DELETE ".$foreign_key_attribute_array[Sqloo::PARENT_ON_DELETE]." ON UPDATE ".$foreign_key_attribute_array[Sqloo::PARENT_ON_UPDATE];
+		self::$_alter_table_data[$table_name]["list"][] = "ADD FOREIGN KEY ( \"".$column_name."\" ) REFERENCES \"".$foreign_key_attribute_array["target_table_name"]."\" ( \"".$foreign_key_attribute_array["target_column_name"]."\" ) ON DELETE ".$foreign_key_attribute_array[Sqloo::PARENT_ON_DELETE]." ON UPDATE ".$foreign_key_attribute_array[Sqloo::PARENT_ON_UPDATE];
 	}
 
 	static protected function _dropForeignKey( $table_name, $column_name, $foreign_key_name )
 	{
-		self::$_alter_table_data[$table_name]["list"][] = "DROP FOREIGN KEY `".$foreign_key_name."`";
+		self::$_alter_table_data[$table_name]["list"][] = "DROP FOREIGN KEY \"".$foreign_key_name."\"";
 	}
 	
 }

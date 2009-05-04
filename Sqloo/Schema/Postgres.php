@@ -76,7 +76,13 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 				$query_string = "CREATE TABLE \"".$table_name."\" (\n";
 				foreach( $table_array["column"] as $column_name => $column_array ) {
 					$query_string .= $column_name." ".self::$_sqloo->getTypeString( $column_array["info"][Sqloo::COLUMN_DATA_TYPE] );
-					if( $column_array["info"][Sqloo::COLUMN_DEFAULT_VALUE] !== NULL ) $query_string .= " DEFAULT ".$column_array["info"][Sqloo::COLUMN_DEFAULT_VALUE];
+					if( $column_array["info"][Sqloo::COLUMN_AUTO_INCREMENT] ) {
+						$sequence_name = $table_name."_".$column_name."_seq";
+						$query_array[] = "CREATE SEQUENCE \"".$sequence_name."\";";
+						$query_string .= " DEFAULT nextval('".$sequence_name."')";	
+					} else {
+						if( $column_array["info"][Sqloo::COLUMN_DEFAULT_VALUE] !== NULL ) $query_string .= " DEFAULT ".$column_array["info"][Sqloo::COLUMN_DEFAULT_VALUE];					
+					}
 					$query_string .= ( $column_array["info"][Sqloo::COLUMN_ALLOW_NULL] ) ? " NULL" : " NOT NULL";
 					if( $column_array["info"][Sqloo::COLUMN_PRIMARY_KEY] ) $query_string .= " PRIMARY KEY";
 					$query_string .= ",\n";
@@ -121,8 +127,6 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 				}
 			}
 		}				
-		
-		print_r( $query_array );
 		foreach( $query_array as $query_string ) {
 			self::$_sqloo->query( $query_string );
 		}

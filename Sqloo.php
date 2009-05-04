@@ -193,7 +193,7 @@ class Sqloo
 	
 	public function insert( $table_name, $insert_array_or_query )
 	{		
-		$insert_string = "INSERT INTO `".$table_name."`\n";
+		$insert_string = "INSERT INTO \"".$table_name."\"\n";
 		$table_column_array = $this->_getTable( $table_name )->column;
 		if( is_array( $insert_array_or_query ) ) {
 			$column_array = array_keys( $insert_array_or_query );
@@ -236,7 +236,7 @@ class Sqloo
 			trigger_error( "bad input type: ".get_type( $insert_array_or_query ), E_USER_ERROR );
 		}
 			
-		return $this->_getDatabaseResource( self::QUERY_MASTER )->lastInsertId();
+		return $this->_getDatabaseResource( self::QUERY_MASTER )->lastInsertId( $table_name."_id_seq" );
 	}
 	
 	/**
@@ -252,7 +252,7 @@ class Sqloo
 	public function update( $table_name, $update_array, $id_array_or_where_string )
 	{			
 		/* create update string */
-		$update_string = "UPDATE `".$table_name."`\n";
+		$update_string = "UPDATE \"".$table_name."\"\n";
 		$update_string .= "SET ";
 		
 		//check if we have a "magic" modifed field
@@ -284,7 +284,7 @@ class Sqloo
 	
 	public function delete( $table_name, $id_array )
 	{
-		$delete_string = "DELETE FROM `".$table_name."`\n";
+		$delete_string = "DELETE FROM \"".$table_name."\"\n";
 		if( is_array( $id_array_or_where_string ) ) {
 			$id_array_count = count( $id_array );
 			if ( ! $id_array_count ) trigger_error( "id_array of 0 size", E_USER_ERROR );
@@ -332,18 +332,18 @@ class Sqloo
 	*	@return	Sqloo_Table	N:M Sqloo_Table object, used for NMJoins
 	*/
 	
-	public function newNMTable( $sqloo_table_class_1, $sqloo_table_class_2 )
+	public function newNMTable( $sqloo_table_name_1, $sqloo_table_name_2 )
 	{
-		$many_to_many_table = $this->newTable( self::computeNMTableName( $sqloo_table_class_1->name, $sqloo_table_class_2->name ) );
+		$many_to_many_table = $this->newTable( self::computeNMTableName( $sqloo_table_name_1, $sqloo_table_name_2 ) );
 		$many_to_many_table->parent = array(
-			$sqloo_table_class_1->name => array(
-				Sqloo::PARENT_TABLE_NAME => $sqloo_table_class_1->name, 
+			$sqloo_table_name_1 => array(
+				Sqloo::PARENT_TABLE_NAME => $sqloo_table_name_1, 
 				Sqloo::PARENT_ALLOW_NULL => FALSE, 
 				Sqloo::PARENT_ON_DELETE => Sqloo::ACTION_CASCADE, 
 				Sqloo::PARENT_ON_UPDATE => Sqloo::ACTION_CASCADE
 			),
-			$sqloo_table_class_2->name => array(
-				Sqloo::PARENT_TABLE_NAME => $sqloo_table_class_2->name, 
+			$sqloo_table_name_2 => array(
+				Sqloo::PARENT_TABLE_NAME => $sqloo_table_name_2, 
 				Sqloo::PARENT_ALLOW_NULL => FALSE, 
 				Sqloo::PARENT_ON_DELETE => Sqloo::ACTION_CASCADE, 
 				Sqloo::PARENT_ON_UPDATE => Sqloo::ACTION_CASCADE
@@ -436,7 +436,7 @@ class Sqloo
 		$database_configuration = $this->_getDatabaseConfiguration( self::QUERY_MASTER );
 		switch( $database_configuration["type"] ) {
 		case "mysql": $file_name = "Mysql"; break;
-		case "pgsql": $file_name = "PostgreSQL"; break;
+		case "pgsql": $file_name = "Postgres"; break;
 		default: trigger_error( "Bad database type: ".$database_configuration["type"], E_USER_ERROR ); break;
 		}
 
@@ -458,7 +458,7 @@ class Sqloo
 	{
 		if( ! array_key_exists( $table_name, $this->_table_array ) ) {
 			if( $this->_load_table_function && is_callable( $this->_load_table_function ) )
-				$this->_load_table_function( $table_name, $this );
+				call_user_func( $this->_load_table_function, $table_name, $this );
 			if( ! array_key_exists( $table_name, $this->_table_array ) )
 				trigger_error( "could not load table: ".$table_name, E_USER_ERROR );
 		}
@@ -469,7 +469,7 @@ class Sqloo
 		static $all_tables_loaded = FALSE;
 		if( ! $all_tables_loaded ) {
 			if( is_callable( $this->_list_all_tables_function ) )
-				foreach( $this->_list_all_tables_function( $this ) as $table_name )
+				foreach( call_user_func( $this->_list_all_tables_function, $this ) as $table_name )
 					$this->_loadTable( $table_name );
 			
 			$all_tables_loaded = TRUE;
@@ -489,7 +489,8 @@ class Sqloo
 				$configuration_array["password"], 
 				array(
 					PDO::ATTR_PERSISTENT => TRUE,
-					PDO::ATTR_TIMEOUT => 15
+					PDO::ATTR_TIMEOUT => 15,
+					PDO::MYSQL_ATTR_INIT_COMMAND => "SET sql_mode='POSTGRESQL';"
 				) 
 			);
 		}
