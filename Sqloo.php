@@ -88,6 +88,7 @@ class Sqloo
 	*	@param string Function that is called when Sqloo needs a slave db configuration, should return a random slave configuration
 	*	@param string Function that is called when Sqloo needs to access a table that isn't loaded, allows dynamically loaded tables
 	*	@param string Function that is called when Sqloo needs a list of all the available tables
+	*	@returns Sqloo
 	*/
 	
 	public function __construct( $master_db_function, $slave_db_function = NULL, $load_table_function = NULL, $list_all_tables_function = NULL ) 
@@ -370,20 +371,20 @@ class Sqloo
 		$database_resource = $this->_getDatabaseResource( $query_type );
 		try {
 			if( $parameters_array ) {
-				$prepare_object = $database_resource->prepare( $query_string );
-				$query_object = $prepare_object->execute( $parameters_array );				
+				$statement_object = $database_resource->prepare( $query_string );
+				$query_object = $statement_object->execute( $parameters_array );				
 			} else {
-				$query_object = $database_resource->query( $query_string );
+				$statement_object = $database_resource->query( $query_string );
 			}
 		} catch ( PDOException $exception ) {
 			trigger_error( $exception->getMessage()."<br>\n".$query_string, E_USER_ERROR );
 		}			
 
-		if( ! $query_object ) {
-			$error_array = $parameters_array ? $prepare_object->errorInfo() : $database_resource->errorInfo();
+		if( ! $statement_object ) {
+			$error_array = $parameters_array ? $statement_object->errorInfo() : $database_resource->errorInfo();
 			trigger_error( ( array_key_exists( 2, $error_array ) ? $error_array[2] : $error_array[0] )."<br>\n".$query_string, E_USER_ERROR );
 		}
-		return $query_object;
+		return $statement_object;
 	}
 
 	/**
@@ -517,7 +518,7 @@ class Sqloo
 				
 				$function_name = array_shift( $function_name_array );
 				if( is_callable( $function_name ) )
-					$database_configuration_array[$type_id] = $function_name();
+					$database_configuration_array[$type_id] = call_user_func( $function_name );
 				else
 					trigger_error( "Non-existing function was referenced: ".$function_name, E_USER_WARNING );
 			} while( ! array_key_exists( $type_id, $database_configuration_array ) );
