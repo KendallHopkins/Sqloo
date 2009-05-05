@@ -146,7 +146,14 @@ class Sqloo_Query
 	
 	public function getQueryString()
 	{
-		return $this->_getSelectString().$this->_getFromString().$this->_getWhereString().$this->_getGroupString().$this->_getHavingString().$this->_getOrderString().$this->_getLimitString();
+		return 
+			$this->_getSelectString().
+			$this->_getFromString().
+			$this->_getWhereString().
+			$this->_getGroupString().
+			$this->_getHavingString().
+			$this->_getOrderString().
+			$this->_getLimitString();
 	}
 	
 	/* Inner workings */
@@ -177,18 +184,21 @@ class Sqloo_Query
 			foreach( $join_data_array as $join_data ) {
 				switch( $join_data["type"] ) {
 				case Sqloo_Query_Table::JOIN_CHILD:
-					$from_string .= $join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n";
-					$from_string .= "ON \"".$join_data["reference_to"]."\".".$join_data["join_column"]." = \"".$join_data["reference_from"]."\".id\n";
+					$from_string .= 
+						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
+						"ON \"".$join_data["reference_to"]."\".".$join_data["join_column"]." = \"".$join_data["reference_from"]."\".id\n";
 					break;
 				case Sqloo_Query_Table::JOIN_PARENT:
-					$from_string .= $join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n";
-					$from_string .= "ON \"".$join_data["reference_to"]."\".id = \"".$join_data["reference_from"]."\".".$join_data["join_column"]."\n";
+					$from_string .= 
+						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
+						"ON \"".$join_data["reference_to"]."\".id = \"".$join_data["reference_from"]."\".".$join_data["join_column"]."\n";
 					break;
 				case Sqloo_Query_Table::JOIN_NM:
-					$from_string .= $join_data["join_type"]." JOIN \"".$join_data["table_nm"]."\" AS \"".$join_data["reference_nm"]."\"\n";
-					$from_string .= "ON \"".$join_data["reference_from"]."\".id = \"".$join_data["reference_nm"]."\".".$join_data["table_from"]."\n";
-					$from_string .= $join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n";
-					$from_string .= "ON \"".$join_data["reference_to"]."\".id = \"".$join_data["reference_nm"]."\".".$join_data["table_to"]."\n";
+					$from_string .= 
+						$join_data["join_type"]." JOIN \"".$join_data["table_nm"]."\" AS \"".$join_data["reference_nm"]."\"\n".
+						"ON \"".$join_data["reference_from"]."\".id = \"".$join_data["reference_nm"]."\".".$join_data["table_from"]."\n".
+						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
+						"ON \"".$join_data["reference_to"]."\".id = \"".$join_data["reference_nm"]."\".".$join_data["table_to"]."\n";
 					break;
 				default:
 					trigger_error( "Bad join type, type_id: ".$join_data["type"], E_USER_ERROR );
@@ -227,7 +237,8 @@ class Sqloo_Query
 	{
 		$order_string = "ORDER BY ";
 		if( count( $this->_query_data["order"] ) > 0 ) {
-			foreach( $this->_query_data["order"] as $reference => $order_type ) $order_string .= $reference." ".$order_type.", ";
+			foreach( $this->_query_data["order"] as $reference => $order_type )
+				$order_string .= $reference." ".$order_type.", ";
 			$order_string = substr( $order_string, 0, -2 )."\n";
 		} else {
 			//If you use GROUP BY, output rows are sorted according to the GROUP BY columns as if you had an ORDER BY for the same columns.

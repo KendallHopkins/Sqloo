@@ -229,8 +229,9 @@ class Sqloo
 					$insert_array_or_query->column[$magic_column] = "CURRENT_TIMESTAMP";
 			}
 
-			$insert_string .= " (".implode( ",", array_keys( $insert_array_or_query->column ) ).")\n";
-			$insert_string .= (string)$insert_array_or_query; //transform object to string (function __toString)
+			$insert_string .= 
+				" (".implode( ",", array_keys( $insert_array_or_query->column ) ).")\n".
+				(string)$insert_array_or_query; //transform object to string (function __toString)
 			
 			$this->query( $insert_string );
 		} else {
@@ -253,20 +254,24 @@ class Sqloo
 	public function update( $table_name, $update_array, $id_array_or_where_string )
 	{			
 		/* create update string */
-		$update_string = "UPDATE \"".$table_name."\"\n";
-		$update_string .= "SET ";
+		$update_string = 
+			"UPDATE \"".$table_name."\"\n".
+			"SET ";
 		
 		//check if we have a "magic" modifed field
-		if( array_key_exists( "modified", $this->_getTable($table_name)->column ) ) $update_string .= "modified=CURRENT_TIMESTAMP,";
+		if( array_key_exists( "modified", $this->_getTable($table_name)->column ) )
+			$update_string .= "modified=CURRENT_TIMESTAMP,";
 		//add other fields
-		foreach( array_keys( $update_array ) as $key ) $update_string .= $key."=?,";
+		foreach( array_keys( $update_array ) as $key )
+			$update_string .= $key."=?,";
 		$update_string = substr( $update_string, -1, 0 )."\n";
 		
 		if( is_array( $id_array_or_where_string ) ) {
 			$id_array_count = count( $id_array_or_where_string );
 			if( ! $id_array_count ) trigger_error( "id_array of 0 size", E_USER_ERROR );
-			$update_string .= "WHERE id IN (".implode( ",", array_fill( 0, count( $id_array_or_where_string ), "?" ) ).")\n";
-			$update_string .= "LIMIT ".$id_array_count."\n";
+			$update_string .= 
+				"WHERE id IN (".implode( ",", array_fill( 0, count( $id_array_or_where_string ), "?" ) ).")\n".
+				"LIMIT ".$id_array_count."\n";
 			$this->query( $update_string, array_merge( array_values( $id_array_or_where_string ), $id_array_or_where_string ) );
 		} else if( is_string( $id_array_or_where_string ) ) {
 			$update_string .= "WHERE ".$id_array_or_where_string.";";

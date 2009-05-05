@@ -38,11 +38,10 @@ class Sqloo_Schema_Mysql extends Sqloo_Schema
 			self::$_sqloo->query( "SET FOREIGN_KEY_CHECKS=0;" );
 			foreach( self::$_alter_table_data as $table_name => $table_query_info_array ) {
 				$query_string = "";
-				if( array_key_exists( "create", $table_query_info_array ) ) {
+				if( array_key_exists( "create", $table_query_info_array ) )
 					$query_string .= "CREATE TABLE \"".$table_name."\"(\n";
-				} else {
+				else
 					$query_string .= "ALTER TABLE \"".$table_name."\"\n";
-				}
 				
 				$query_string .= implode( ",\n", $table_query_info_array["list"] );
 				
@@ -115,17 +114,18 @@ class Sqloo_Schema_Mysql extends Sqloo_Schema
 	static protected function _getForeignKeyDataArray()
 	{
 		$foreign_key_data_array = array();
-		$query_string = "SELECT\n";
-		$query_string .= "ke.referenced_table_name referenced_table_name,\n";
-		$query_string .= "ke.table_name table_name,\n";
-		$query_string .= "ke.column_name column_name,\n";
-		$query_string .= "ke.referenced_column_name referenced_column_name,\n";
-		$query_string .= "ke.constraint_name constraint_name\n";
-		$query_string .= "FROM\n";
-		$query_string .= "information_schema.KEY_COLUMN_USAGE ke\n";
-		$query_string .= "WHERE\n";
-		$query_string .= "ke.referenced_table_name IS NOT NULL &&\n";
-		$query_string .= "ke.TABLE_SCHEMA = '".self::$_database_configuration["name"]."';";
+		$query_string = 
+			"SELECT\n".
+			"ke.referenced_table_name referenced_table_name,\n".
+			"ke.table_name table_name,\n".
+			"ke.column_name column_name,\n".
+			"ke.referenced_column_name referenced_column_name,\n".
+			"ke.constraint_name constraint_name\n".
+			"FROM\n".
+			"information_schema.KEY_COLUMN_USAGE ke\n".
+			"WHERE\n".
+			"ke.referenced_table_name IS NOT NULL &&\n".
+			"ke.TABLE_SCHEMA = '".self::$_database_configuration["name"]."';";
 		$query_resource = self::$_sqloo->query( $query_string );
 		while( $row = $query_resource->fetch( PDO::FETCH_ASSOC ) ) {
 			$current_attribute_array = self::_getForeignKeyAttributeArray( $row["table_name"], $row["column_name"] );
@@ -186,18 +186,19 @@ class Sqloo_Schema_Mysql extends Sqloo_Schema
 	
 	static protected function _buildFullTypeString( $target_attribute_array )
 	{
-		$full_type_string = self::$_sqloo->getTypeString( $target_attribute_array[Sqloo::COLUMN_DATA_TYPE] );
-		$full_type_string .= ( $target_attribute_array[Sqloo::COLUMN_ALLOW_NULL] ) ? " NULL" : " NOT NULL";
-		$full_type_string .= ( $target_attribute_array[Sqloo::COLUMN_DEFAULT_VALUE] !== NULL ) ? " DEFAULT '".$target_attribute_array[Sqloo::COLUMN_DEFAULT_VALUE]."'" : "";
-		$full_type_string .= ( $target_attribute_array[Sqloo::COLUMN_AUTO_INCREMENT] ) ? " AUTO_INCREMENT" : "";
-		return $full_type_string;
+		return
+			self::$_sqloo->getTypeString( $target_attribute_array[Sqloo::COLUMN_DATA_TYPE] ).
+			( ( $target_attribute_array[Sqloo::COLUMN_ALLOW_NULL] ) ? " NULL" : " NOT NULL" ).
+			( ( $target_attribute_array[Sqloo::COLUMN_DEFAULT_VALUE] !== NULL ) ? " DEFAULT '".$target_attribute_array[Sqloo::COLUMN_DEFAULT_VALUE]."'" : "" ).
+			( ( $target_attribute_array[Sqloo::COLUMN_AUTO_INCREMENT] ) ? " AUTO_INCREMENT" : "" );
 	}
 	
 	static protected function _addIndex( $table_name, $index_attribute_array )
 	{
 		$index_name = self::_getIndexName( $index_attribute_array );
 		$query_string = "ADD ";
-		if( $index_attribute_array[Sqloo::INDEX_UNIQUE] ) $query_string .= "UNIQUE ";
+		if( $index_attribute_array[Sqloo::INDEX_UNIQUE] )
+			$query_string .= "UNIQUE ";
 		$query_string .= "INDEX \"".$index_name."\" ( \"".implode( "\",\"", $index_attribute_array[Sqloo::INDEX_COLUMN_ARRAY] )."\" )";
 		self::$_alter_table_data[$table_name]["list"][] = $query_string;
 	}
