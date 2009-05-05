@@ -240,11 +240,6 @@ class Sqloo_Query
 			foreach( $this->_query_data["order"] as $reference => $order_type )
 				$order_string .= $reference." ".$order_type.", ";
 			$order_string = substr( $order_string, 0, -2 )."\n";
-		} else {
-			//If you use GROUP BY, output rows are sorted according to the GROUP BY columns as if you had an ORDER BY for the same columns.
-			//To avoid the overhead of sorting that GROUP BY produces, add ORDER BY NULL.
-			//http://dev.mysql.com/doc/refman/5.0/en/select.html
-			$order_string .= "NULL\n";
 		}
 		return $order_string;
 	}
