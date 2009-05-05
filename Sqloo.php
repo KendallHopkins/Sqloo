@@ -475,7 +475,7 @@ class Sqloo
 		static $all_tables_loaded = FALSE;
 		if( ! $all_tables_loaded ) {
 			if( is_callable( $this->_list_all_tables_function ) )
-				foreach( call_user_func( $this->_list_all_tables_function, $this ) as $table_name )
+				foreach( call_user_func( $this->_list_all_tables_function ) as $table_name )
 					$this->_loadTable( $table_name );
 			
 			$all_tables_loaded = TRUE;

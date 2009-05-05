@@ -120,14 +120,13 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 				foreach( $table_array["fk"] as $column_name => $foreign_key_array ) {
 					foreach( $foreign_key_array as $foreign_key_name => $foreign_key ) {
 						if( $foreign_key["action"] === "add" ) {
-							$query_string = 
+							$query_array[] = 
 								"ALTER TABLE \"".$table_name."\"\n".
 								"ADD CONSTRAINT \"".$foreign_key_name."\"\n".
 								"FOREIGN KEY (\"".$column_name."\")\n".
 								"REFERENCES \"".$foreign_key["info"]["target_table_name"]."\" (\"".$foreign_key["info"]["target_column_name"]."\") MATCH FULL\n".
 								"ON DELETE ".$foreign_key["info"]["parent_on_delete"]."\n".
 								"ON UPDATE ".$foreign_key["info"]["parent_on_update"].";";
-							$query_array[] = $query_string;
 						}
 					}
 				}
