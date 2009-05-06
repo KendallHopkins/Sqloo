@@ -180,8 +180,7 @@ class Sqloo_Query
 		$from_string = "FROM ";
 		if( $this->_root_query_table_class !== NULL ) {
 			$from_string .= "\"".$this->_root_query_table_class->getTableName()."\"\n";
-			$join_data_array = $this->_getJoinData( $this->_root_query_table_class );
-			foreach( $join_data_array as $join_data ) {
+			foreach( $this->_getJoinData( $this->_root_query_table_class ) as $join_data ) {
 				switch( $join_data["type"] ) {
 				case Sqloo_Query_Table::JOIN_CHILD:
 					$from_string .= 

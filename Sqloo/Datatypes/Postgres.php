@@ -54,7 +54,6 @@ class Sqloo_Datatypes_Postgres implements Sqloo_Datatypes
 		case Sqloo::DATATYPE_OVERRIDE:
 			return $attributes_array["override"];
 		default: 
-			var_dump( $attributes_array );
 			trigger_error( "Bad types: ".$attributes_array["type"], E_USER_ERROR );
 		}
 	}

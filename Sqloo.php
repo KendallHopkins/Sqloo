@@ -109,7 +109,7 @@ class Sqloo
 	{
 		if( $this->_in_transaction ) {
 			$this->rollbackTransaction();
-			trigger_error( $i." transaction was not close and was rolled back", E_USER_ERROR );
+			trigger_error( "Transaction was not close and was rolled back", E_USER_ERROR );
 		}
 	}
 	
@@ -453,9 +453,9 @@ class Sqloo
 		default: trigger_error( "Bad database type: ".$database_configuration["type"], E_USER_ERROR ); break;
 		}
 
-		$class_name = "Sqloo_Schema_".$file_name;
 		require_once( "Sqloo/Schema.php" );
 		require_once( "Sqloo/Schema/".$file_name.".php" );
+		$class_name = "Sqloo_Schema_".$file_name;
 		$schema = new $class_name( $this );
 		return $schema->checkSchema();
 	}
@@ -464,7 +464,8 @@ class Sqloo
 	
 	private function _getTable( $table_name )
 	{
-		if( ! array_key_exists( $table_name, $this->_table_array ) ) $this->_loadTable( $table_name );
+		if( ! array_key_exists( $table_name, $this->_table_array ) )
+			$this->_loadTable( $table_name );
 		return $this->_table_array[$table_name];
 	}
 	
@@ -530,10 +531,12 @@ class Sqloo
 				if( ! count( $function_name_array ) ) trigger_error( "No good function for setup database", E_USER_ERROR );
 				
 				$function_name = array_shift( $function_name_array );
-				if( is_callable( $function_name ) )
-					$database_configuration_array[$type_id] = call_user_func( $function_name );
-				else
-					trigger_error( "Non-existing function was referenced: ".$function_name, E_USER_WARNING );
+				if( $function_name ) {
+					if( is_callable( $function_name ) )
+						$database_configuration_array[$type_id] = call_user_func( $function_name );
+					else
+						trigger_error( "Non-existing function was referenced: ".$function_name, E_USER_WARNING );
+				}
 			} while( ! array_key_exists( $type_id, $database_configuration_array ) );
 		}
 		return $database_configuration_array[$type_id];
