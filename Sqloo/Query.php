@@ -235,11 +235,13 @@ class Sqloo_Query
 	
 	private function _getOrderString()
 	{
-		$order_string = "ORDER BY ";
 		if( count( $this->_query_data["order"] ) > 0 ) {
+			$order_string = "ORDER BY ";
 			foreach( $this->_query_data["order"] as $reference => $order_type )
 				$order_string .= $reference." ".$order_type.", ";
 			$order_string = substr( $order_string, 0, -2 )."\n";
+		} else {
+			$order_string = "";
 		}
 		return $order_string;
 	}

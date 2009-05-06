@@ -80,7 +80,7 @@ class Sqloo
 	private $_load_table_function;
 	private $_list_all_tables_function;
 	private $_table_array = array();
-	private $_transaction_depth = 0;
+	private $_in_transaction = FALSE;
 	
 	/**
 	*	Construct Function
@@ -107,9 +107,8 @@ class Sqloo
 	
 	public function __destruct()
 	{
-		if( $this->_transaction_depth > 0 ) {
-			for( $i = 0; $i < $this->_transaction_depth; $i++ )
-				$this->rollbackTransaction();
+		if( $this->_in_transaction ) {
+			$this->rollbackTransaction();
 			trigger_error( $i." transaction was not close and was rolled back", E_USER_ERROR );
 		}
 	}
@@ -123,19 +122,30 @@ class Sqloo
 	private function __clone() { trigger_error( "Clone is not allowed.", E_USER_ERROR ); }
 	
 	/**
+	*	Returns if sqloo instance is in a transaction.
+	*
+	*	@return bool TRUE if in transaction, FALSE if not
+	*/
+	
+	public function inTransaction()
+	{
+		return $this->_in_transaction;
+	}
+	
+	/**
 	*	Opens a new transaction layer
 	*
 	*	This can be nested to allow multiable layers of transactions
 	*/
-	
+		
 	public function beginTransaction()
 	{
-		if( $this->_transaction_depth === 0 )
+		if( ! $this->_in_transaction ) {
 			$this->_getDatabaseResource( self::QUERY_MASTER )->beginTransaction();
-		else
-			$this->query( "SAVEPOINT s".$this->_transaction_depth );
-		
-		$this->_transaction_depth++;
+			$this->_in_transaction = TRUE;
+		} else {
+			trigger_error( "Already in transaction", E_USER_ERROR );		
+		}
 	}
 	
 	/**
@@ -144,14 +154,12 @@ class Sqloo
 	
 	public function rollbackTransaction()
 	{
-		if( $this->_transaction_depth === 0 )
-			trigger_error( "not in a transaction, didn't rollback", E_USER_ERROR );
-		
-		if( --$this->_transaction_depth === 0 )
+		if( $this->_in_transaction ) {
 			$this->_getDatabaseResource( self::QUERY_MASTER )->rollBack();
-		else
-			$this->query( "ROLLBACK TO SAVEPOINT s".$this->_transaction_depth );
-
+			$this->_in_transaction = FALSE;
+		} else {
+			trigger_error( "not in a transaction, didn't rollback", E_USER_ERROR );		
+		}
 	}
 	
 	/**
@@ -160,13 +168,12 @@ class Sqloo
 	
 	public function commitTransaction()
 	{
-		if( $this->_transaction_depth === 0 )
-			trigger_error( "not in a transaction, didn't rollback", E_USER_ERROR );
-		
-		if( --$this->_transaction_depth === 0 )
+		if( $this->_in_transaction ) {
 			$this->_getDatabaseResource( self::QUERY_MASTER )->commit();
-		else
-			$this->query( "RELEASE SAVEPOINT s".$this->_transaction_depth );
+			$this->_in_transaction = FALSE;
+		} else {
+			trigger_error( "not in a transaction, didn't commit", E_USER_ERROR );		
+		}
 	}
 	
 	/**
@@ -274,7 +281,7 @@ class Sqloo
 				"LIMIT ".$id_array_count."\n";
 			$this->query( $update_string, array_merge( array_values( $id_array_or_where_string ), $id_array_or_where_string ) );
 		} else if( is_string( $id_array_or_where_string ) ) {
-			$update_string .= "WHERE ".$id_array_or_where_string.";";
+			$update_string .= "WHERE ".$id_array_or_where_string;
 			$this->query( $update_string, array_values( $id_array_or_where_string ));
 		} else {
 			trigger_error( "bad input type", E_USER_ERROR );
@@ -294,7 +301,7 @@ class Sqloo
 		if( is_array( $id_array_or_where_string ) ) {
 			$id_array_count = count( $id_array );
 			if ( ! $id_array_count ) trigger_error( "id_array of 0 size", E_USER_ERROR );
-			$delete_string .= "WHERE id IN (".array_fill( 0, count( $id_array_or_where_string ), "?" ).");";
+			$delete_string .= "WHERE id IN (".array_fill( 0, count( $id_array_or_where_string ), "?" ).")";
 			$this->query( $delete_string, array_values( $id_array_or_where_string ) );
 		} else {
 			trigger_error( "bad input type", E_USER_ERROR );
@@ -369,7 +376,7 @@ class Sqloo
 	
 	public function query( $query_string, $parameters_array = NULL, $on_slave = FALSE )
 	{
-		if( ( $this->_transaction_depth > 0 ) || ( ! $on_slave ) )
+		if( $this->_in_transaction || ( ! $on_slave ) )
 			$query_type = self::QUERY_MASTER;
 		else
 			$query_type = self::QUERY_SLAVE;
@@ -449,7 +456,8 @@ class Sqloo
 		$class_name = "Sqloo_Schema_".$file_name;
 		require_once( "Sqloo/Schema.php" );
 		require_once( "Sqloo/Schema/".$file_name.".php" );
-		return $class_name::checkSchema( $this );
+		$schema = new $class_name( $this );
+		return $schema->checkSchema();
 	}
 	
 	/* Private Functions */
@@ -496,7 +504,7 @@ class Sqloo
 				array(
 					PDO::ATTR_PERSISTENT => TRUE,
 					PDO::ATTR_TIMEOUT => 15,
-					PDO::MYSQL_ATTR_INIT_COMMAND => "SET sql_mode='POSTGRESQL';"
+					PDO::MYSQL_ATTR_INIT_COMMAND => "SET sql_mode='POSTGRESQL'"
 				) 
 			);
 		}
