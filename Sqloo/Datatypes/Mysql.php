@@ -47,22 +47,23 @@ class Sqloo_Datatypes_Mysql implements Sqloo_Datatypes
 					( trigger_error( "Size for a float is to large: ".$size, E_USER_ERROR ) ) ) );
 		case Sqloo::DATATYPE_STRING: 
 			return 	( ( ! array_key_exists( "size", $attributes_array ) ) ? "text" : 
-					( $attributes_array["size"] <= 255 ? "varchar(".(int)$attributes_array["size"].")" : 
-					( $attributes_array["size"] < ( pow( 2, 16 ) - 2 ) ? "text" : 
-					( $attributes_array["size"] < ( pow( 2, 24 ) - 3 ) ? "mediumtext" : 
-					( $attributes_array["size"] < ( pow( 2, 32 ) - 4 ) ? "longtext" : 
+					( $attributes_array["size"] <= ( pow( 2, 8 ) - 1 ) ? "varchar(".(int)$attributes_array["size"].")" : 
+					( $attributes_array["size"] <= ( pow( 2, 16 ) - 2 ) ? "text" : 
+					( $attributes_array["size"] <= ( pow( 2, 24 ) - 3 ) ? "mediumtext" : 
+					( $attributes_array["size"] <= ( pow( 2, 32 ) - 4 ) ? "longtext" : 
 					( trigger_error( "Text size is to big for mysql", E_USER_ERROR ) ) ) ) ) ) );
 					
 		case Sqloo::DATATYPE_FILE: 
 			return 	( ( ! array_key_exists( "size", $attributes_array ) ? "blob" : 
-					( $attributes_array["size"] < ( pow( 2, 8 ) - 1 ) ? "tinyblob" : 
-					( $attributes_array["size"] < ( pow( 2, 16 ) - 2 ) ? "blob" : 
-					( $attributes_array["size"] < ( pow( 2, 24 ) - 3 ) ? "mediumblob" : 
-					( $attributes_array["size"] < ( pow( 2, 32 ) - 4 ) ? "longblob" : 
+					( $attributes_array["size"] <= ( pow( 2, 8 ) - 1 ) ? "tinyblob" : 
+					( $attributes_array["size"] <= ( pow( 2, 16 ) - 2 ) ? "blob" : 
+					( $attributes_array["size"] <= ( pow( 2, 24 ) - 3 ) ? "mediumblob" : 
+					( $attributes_array["size"] <= ( pow( 2, 32 ) - 4 ) ? "longblob" : 
 					( trigger_error( "File size is to big for mysql", E_USER_ERROR ) ) ) ) ) ) ) );
 		case Sqloo::DATATYPE_OVERRIDE:
 			return $attributes_array["override"];
-		default: trigger_error( "Bad types: ".$attributes_array["type"], E_USER_ERROR );
+		default:
+			trigger_error( "Bad types: ".$attributes_array["type"], E_USER_ERROR );
 		}
 		return NULL;
 	}
