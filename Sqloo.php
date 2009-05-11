@@ -122,6 +122,65 @@ class Sqloo
 	private function __clone() { trigger_error( "Clone is not allowed.", E_USER_ERROR ); }
 	
 	/**
+	*	Runs the $query_string on a database determinded by the params
+	*	
+	*	@param	string		Query string
+	*	@param	bool		Set if the query can be run on a slave. If in a transaction, this is ignored.
+	*	@param	array		Array of parameters, these will be escaped
+	*	@return	resource	Resource from PDO::query().
+	*/
+	
+	public function query( $query_string, $parameters_array = NULL, $on_slave = FALSE )
+	{
+		$statement_object = $this->prepare( $query_string, $on_slave );
+		$this->execute( $statement_object, $parameters_array );
+		return $statement_object;
+	}
+	
+	/**
+	*	Prepares the $query_string for the database determinded by the params
+	*	
+	*	@param	string		Query string
+	*	@param	bool		Set if the query can be run on a slave. If in a transaction, this is ignored.
+	*	@return	resource	Resource from PDO::prepare().
+	*/
+	
+	public function prepare( $query_string, $on_slave = FALSE )
+	{
+		if( $this->_in_transaction || ( ! $on_slave ) )
+			$query_type = self::QUERY_MASTER;
+		else
+			$query_type = self::QUERY_SLAVE;
+		$database_resource = $this->_getDatabaseResource( $query_type );
+		
+		try {
+			$statement_object = $database_resource->prepare( $query_string );			
+		} catch ( PDOException $exception ) {
+			trigger_error( $exception->getMessage()."<br>\n".$query_string, E_USER_ERROR );
+		}
+		if( ! $statement_object ) {
+			$error_array = $database_resource->errorInfo();
+			trigger_error( ( array_key_exists( 2, $error_array ) ? $error_array[2] : $error_array[0] )."<br>\n".$query_string, E_USER_ERROR );
+		}
+		return $statement_object;
+	}
+	
+	/**
+	*	Runs the prepared query and escapes the parameter_array
+	*	
+	*	@param	resource	Resource from PDO::prepare().
+	*	@param	array		Array of parameters, these will be escaped
+	*/
+	
+	public function execute( $statement_object, $parameters_array = NULL )
+	{	
+		if( ! $statement_object->execute( $parameters_array ) ) {
+			$error_aray = $statement_object->errorInfo();
+			trigger_error( $error_aray[2]."<br>\n".$query_string, E_USER_ERROR );
+		}
+	}
+	
+	/**
 	*	Returns if sqloo instance is in a transaction.
 	*
 	*	@return bool TRUE if in transaction, FALSE if not
@@ -361,50 +420,6 @@ class Sqloo
 			)
 		);
 		return $many_to_many_table;
-	}
-	
-	/**
-	*	Runs the $query_string on a database determinded by the params
-	*	
-	*	@param	string		Query string
-	*	@param	bool		Set if the query can be run on a slave. If in a transaction, this is ignored.
-	*	@param	array		Array of parameters, these will be escaped
-	*	@return	resource	Resource from PDO::query().
-	*/
-	
-	public function query( $query_string, $parameters_array = NULL, $on_slave = FALSE )
-	{
-		$statement_object = $this->prepare( $query_string, $on_slave );
-		$this->execute( $statement_object, $parameters_array );
-		return $statement_object;
-	}
-	
-	public function prepare( $query_string, $on_slave = FALSE )
-	{
-		if( $this->_in_transaction || ( ! $on_slave ) )
-			$query_type = self::QUERY_MASTER;
-		else
-			$query_type = self::QUERY_SLAVE;
-		$database_resource = $this->_getDatabaseResource( $query_type );
-		
-		try {
-			$statement_object = $database_resource->prepare( $query_string );			
-		} catch ( PDOException $exception ) {
-			trigger_error( $exception->getMessage()."<br>\n".$query_string, E_USER_ERROR );
-		}
-		if( ! $statement_object ) {
-			$error_array = $database_resource->errorInfo();
-			trigger_error( ( array_key_exists( 2, $error_array ) ? $error_array[2] : $error_array[0] )."<br>\n".$query_string, E_USER_ERROR );
-		}
-		return $statement_object;
-	}
-	
-	public function execute( $statement_object, $parameters_array = NULL )
-	{	
-		if( ! $statement_object->execute( $parameters_array ) ) {
-			$error_aray = $statement_object->errorInfo();
-			trigger_error( $error_aray[2]."<br>\n".$query_string, E_USER_ERROR );
-		}
 	}
 
 	/**
