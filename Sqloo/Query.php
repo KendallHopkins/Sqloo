@@ -43,6 +43,7 @@ class Sqloo_Query
 		"distinct" => FALSE,
 		"buffered" => TRUE
 	);
+	private $_statement_object = NULL;
 	
 	/**
 	*	Construct function
@@ -56,6 +57,20 @@ class Sqloo_Query
 	{
 		$this->_sqloo = $sqloo;
 		$this->_union_array = $union_array;
+	}
+	
+	/**
+	*	Destruct function
+	*
+	*	Releases memory from query
+	*
+	*	@access private
+	*/
+	
+	public function __destruct()
+	{
+		if( $this->_statement_object )
+			$this->_statement_object->closeCursor();
 	}
 	
 	/**
@@ -105,6 +120,7 @@ class Sqloo_Query
 		if( ! array_key_exists( $key, $this->_query_data ) )
 			trigger_error( "Bad key: $key", E_USER_ERROR );
 		
+		$this->_statement_object = NULL;
 		return $this->_query_data[$key];
 	}
 	
@@ -122,6 +138,7 @@ class Sqloo_Query
 		if( ! array_key_exists( $key, $this->_query_data ) )
 			trigger_error( "Bad key: $key", E_USER_ERROR );
 		
+		$this->_statement_object = NULL;
 		$this->_query_data[$key] = $value;
 	}
 	
@@ -132,10 +149,14 @@ class Sqloo_Query
 	*	@return	Sqloo_Query_Results	Sqloo_Query_Results object
 	*/
 	
-	public function execute( $parameters_array = NULL )
+	public function run( $parameters_array = NULL )
 	{
+		if( ! $this->_statement_object ) {
+			$this->_statement_object = $this->_sqloo->prepare( $this->getQueryString(), TRUE );
+		}
+		$this->_sqloo->execute( $this->_statement_object, $parameters_array );
 		require_once( "Query/Results.php" );
-		return new Sqloo_Query_Results( $this->_sqloo->query( $this->getQueryString(), $parameters_array, TRUE ) );
+		return new Sqloo_Query_Results( $this->_statement_object );
 	}
 	
 	/**

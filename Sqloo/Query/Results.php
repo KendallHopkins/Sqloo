@@ -44,19 +44,6 @@ class Sqloo_Query_Results
 	}
 	
 	/**
-	*	Destruct function
-	*
-	*	Releases memory from query
-	*
-	*	@access private
-	*/
-	
-	public function __destruct()
-	{
-		$this->_result_object->closeCursor();
-	}
-	
-	/**
 	*	Count of rows returned in query
 	*
 	*	@return	int	Count of rows in query

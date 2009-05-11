@@ -15,7 +15,7 @@
 			"type" => "pgsql"
 		) : array(
 			"address" => "127.0.0.1",
-			"username" => "root",
+			"username" => "ken",
 			"password" => "password",
 			"name" => "sqloo",
 			"type" => "mysql"
@@ -57,22 +57,42 @@ $sqloo->beginTransaction();
 //simple insert foreach loop
 	$insert_data_array = array(
 		array( "address" => "123 Awesome Street", "owner" => $person_id ),
-		array( "address" => "456 Notownedhouse Street", "owner" => NULL )
+		array( "address" => "456 Notownedhouse Street", "owner" => NULL ),
+		array( "address" => "Dir%ty'\" str^()\\ng", "owner" => NULL )
 	);
-	$house_id_array = array();
+	foreach( $insert_data_array as &$insert_data ) {
+		 $inserted_id = $sqloo->insert( "house", $insert_data );
+		 $insert_data["id"] = $inserted_id;
+	}
+
+//check our data is ok
+	$query0 = $sqloo->newQuery();
+	$house_table_ref = $query0->table( "house" );
+	$query0->column = array(
+		"id" => $house_table_ref->id,
+		"address" => $house_table_ref->address,
+		"owner" => $house_table_ref->owner
+	);
+	$query0->where = array( "$house_table_ref->id = :id" );
 	foreach( $insert_data_array as $insert_data ) {
-		$house_id_array[] = $sqloo->insert( "house", $insert_data );
+		$results = $query0->run( array( "id" => $insert_data["id"] ) );
+		$row = $results->fetchRow();
+		if( count( array_diff_assoc( $insert_data, $row ) ) ) {
+			print "error!";
+		}
 	}
 
 //simple query example
 	//Find fname, lname by id
 	$query1 = $sqloo->newQuery();
 	$person_table_ref = $query1->table( "person" );
-	$query1->column["fname"] = $person_table_ref->fname;
-	$query1->column["lname"] = $person_table_ref->lname;
-	$query1->where[] = "$person_table_ref->id = :id_number";
+	$query1->column = array(
+		"fname" => $person_table_ref->fname,
+		"lname" => $person_table_ref->lname
+	);
+	$query1->where = array( "$person_table_ref->id = :id_number" );
 	$non_escaped_value_array = array( "id_number" => $person_id );
-	$result1 = $query1->execute( $non_escaped_value_array ); //run query and return results
+	$result1 = $query1->run( $non_escaped_value_array ); //run query and return results
 	$result_array1 = $result1->fetchArray(); //do something with result_array1
 	print_r( $result_array1 );
 
@@ -81,8 +101,10 @@ $sqloo->beginTransaction();
 	$query2 = $sqloo->newQuery();
 	$house_table_ref = $query2->table( "house" );
 	$person_table_ref = $house_table_ref->joinParent( "person", "owner", Sqloo::JOIN_LEFT );
-	$query2->column["house_address"] = $house_table_ref->address;
-	$query2->column["owner_fullname"] = "$person_table_ref->fname || ' ' || $person_table_ref->lname";
+	$query2->column = array(
+		"house_address" => $house_table_ref->address,
+		"owner_fullname" => "$person_table_ref->fname || ' ' || $person_table_ref->lname"
+	);
 	$sqloo->insert( "house_normalized", $query2 ); //insert query directly into database
 
 $sqloo->rollbackTransaction(); //rollback outer transaction

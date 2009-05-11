@@ -133,11 +133,9 @@ class Sqloo
 	}
 	
 	/**
-	*	Opens a new transaction layer
-	*
-	*	This can be nested to allow multiable layers of transactions
+	*	Opens a new transaction
 	*/
-		
+	
 	public function beginTransaction()
 	{
 		if( ! $this->_in_transaction ) {
@@ -149,7 +147,7 @@ class Sqloo
 	}
 	
 	/**
-	*	Rollbacks the outer transaction layer
+	*	Rollbacks the transaction
 	*/
 	
 	public function rollbackTransaction()
@@ -163,7 +161,7 @@ class Sqloo
 	}
 	
 	/**
-	*	Commits the outer transaction layer
+	*	Commits the transaction
 	*/
 	
 	public function commitTransaction()
@@ -376,27 +374,37 @@ class Sqloo
 	
 	public function query( $query_string, $parameters_array = NULL, $on_slave = FALSE )
 	{
+		$statement_object = $this->prepare( $query_string, $on_slave );
+		$this->execute( $statement_object, $parameters_array );
+		return $statement_object;
+	}
+	
+	public function prepare( $query_string, $on_slave = FALSE )
+	{
 		if( $this->_in_transaction || ( ! $on_slave ) )
 			$query_type = self::QUERY_MASTER;
 		else
 			$query_type = self::QUERY_SLAVE;
 		$database_resource = $this->_getDatabaseResource( $query_type );
+		
 		try {
-			if( $parameters_array ) {
-				$statement_object = $database_resource->prepare( $query_string );
-				$query_object = $statement_object->execute( $parameters_array );				
-			} else {
-				$statement_object = $database_resource->query( $query_string );
-			}
+			$statement_object = $database_resource->prepare( $query_string );			
 		} catch ( PDOException $exception ) {
 			trigger_error( $exception->getMessage()."<br>\n".$query_string, E_USER_ERROR );
-		}			
-
+		}
 		if( ! $statement_object ) {
-			$error_array = $parameters_array ? $statement_object->errorInfo() : $database_resource->errorInfo();
+			$error_array = $database_resource->errorInfo();
 			trigger_error( ( array_key_exists( 2, $error_array ) ? $error_array[2] : $error_array[0] )."<br>\n".$query_string, E_USER_ERROR );
 		}
 		return $statement_object;
+	}
+	
+	public function execute( $statement_object, $parameters_array = NULL )
+	{	
+		if( ! $statement_object->execute( $parameters_array ) ) {
+			$error_aray = $statement_object->errorInfo();
+			trigger_error( $error_aray[2]."<br>\n".$query_string, E_USER_ERROR );
+		}
 	}
 
 	/**
