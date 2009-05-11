@@ -24,6 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
+require( "Query/Table.php" );
+
 class Sqloo_Query
 {
 	
@@ -100,7 +102,6 @@ class Sqloo_Query
 		if( $this->_union_array !== NULL )
 			trigger_error( "This is a union query", E_USER_ERROR );
 		
-		require_once( "Query/Table.php" );
 		$this->_root_query_table_class = new Sqloo_Query_Table( $table_name );
 		return $this->_root_query_table_class;
 	}

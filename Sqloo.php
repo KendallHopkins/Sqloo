@@ -24,6 +24,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
+require( "Sqloo/Query.php" );
+require( "Sqloo/Table.php" );
+
 class Sqloo
 {
 	
@@ -241,7 +244,6 @@ class Sqloo
 	
 	public function newQuery()
 	{
-		require_once( "Sqloo/Query.php" );
 		return new Sqloo_Query( $this );
 	}
 	
@@ -377,7 +379,6 @@ class Sqloo
 	public function union( $array_of_queries )
 	{
 		if( count( $array_of_queries ) < 2 ) trigger_error( "union must have more than 1 query objects", E_USER_ERROR );
-		require_once( "Sqloo/Query.php" );
 		return new Sqloo_Query( $this, $array_of_queries );
 	}
 	
@@ -390,7 +391,6 @@ class Sqloo
 	
 	public function newTable( $table_name )
 	{
-		require_once( "Sqloo/Table.php" );
 		return $this->_table_array[ $table_name ] = new Sqloo_Table( $table_name );
 	}
 	

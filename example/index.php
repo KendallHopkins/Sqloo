@@ -7,18 +7,12 @@
 	//setup our database pooling function
 	function master_pool()
 	{
-		return 1 ? array(
+		return array(
 			"address" => "127.0.0.1",
 			"username" => "ken",
 			"password" => "password",
 			"name" => "sqloo",
-			"type" => "pgsql"
-		) : array(
-			"address" => "127.0.0.1",
-			"username" => "ken",
-			"password" => "password",
-			"name" => "sqloo",
-			"type" => "mysql"
+			"type" => 0 ? "pgsql" : "mysql"
 		);
 	}
 	
@@ -36,7 +30,7 @@
 	
 	//We init Sqloo with functions to get database configuration and load tables dynamically
 	$sqloo = new Sqloo( "master_pool", NULL, "load_table", "list_all_tables" );
-
+	
 /* CHECK SCHEMA */
 	//This is ONLY required to do when the schema is updated
 	//Running "checkSchema" is costly and should only be done when needed
