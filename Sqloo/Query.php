@@ -144,7 +144,6 @@ class Sqloo_Query
 	*	Executes the query object
 	*
 	*	@param	array	key-value array of escaped values
-	*	@return	Sqloo_Query_Results	Sqloo_Query_Results object
 	*/
 	
 	public function run( $parameters_array = NULL )
@@ -153,9 +152,6 @@ class Sqloo_Query
 			$this->_statement_object = $this->_sqloo->prepare( $this->getQueryString(), TRUE );
 		
 		$this->_sqloo->execute( $this->_statement_object, $parameters_array );
-		
-		require_once( "Query/Results.php" );
-		return new Sqloo_Query_Results( $this->_statement_object );
 	}
 	
 	/**
@@ -174,6 +170,42 @@ class Sqloo_Query
 			$this->_getHavingString().
 			$this->_getOrderString().
 			$this->_getLimitString();
+	}
+	
+	public function count()
+	{
+		if( ! $this->_statement_object )
+			trigger_error( "Query hasn't been run yet" );
+		
+		return $this->_statement_object->rowCount();			
+	}
+	
+	/**
+	*	Fetches a row
+	*
+	*	@return	array	associtated array
+	*/
+	
+	public function fetchRow()
+	{
+		if( ! $this->_statement_object )
+			trigger_error( "Query hasn't been run yet" );
+	
+		return $this->_statement_object->fetch( PDO::FETCH_ASSOC );
+	}
+	
+	/**
+	*	Fetches an array of rows
+	*
+	*	@return	array	array of associtated array
+	*/
+	
+	public function fetchArray()
+	{
+		if( ! $this->_statement_object )
+			trigger_error( "Query hasn't been run yet" );
+
+		return $this->_statement_object->fetchAll( PDO::FETCH_ASSOC );
 	}
 	
 	/* Inner workings */

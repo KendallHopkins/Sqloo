@@ -75,8 +75,8 @@ $sqloo->beginTransaction();
 	);
 	$query0->where = array( "$house_table_ref->id = :id" );
 	foreach( $insert_data_array as $insert_data ) {
-		$results = $query0->run( array( "id" => $insert_data["id"] ) );
-		$row = $results->fetchRow();
+		$query0->run( array( "id" => $insert_data["id"] ) );
+		$row = $query0->fetchRow();
 		if( count( array_diff_assoc( $insert_data, $row ) ) ) {
 			print "error!";
 		}
@@ -92,9 +92,9 @@ $sqloo->beginTransaction();
 	);
 	$query1->where = array( "$person_table_ref->id = :id_number" );
 	$non_escaped_value_array = array( "id_number" => $person_id );
-	$result1 = $query1->run( $non_escaped_value_array ); //run query and return results
-	$result_array1 = $result1->fetchArray(); //do something with result_array1
-	print_r( $result_array1 );
+	$query1->run( $non_escaped_value_array ); //run query
+	$result_array1 = $query1->fetchArray();
+	print_r( $result_array1 ); //do something with result_array1
 
 //join query example
 	//normalize the house, and person table.
