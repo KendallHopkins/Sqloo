@@ -176,7 +176,7 @@ class Sqloo
 	{	
 		if( ! $statement_object->execute( $parameters_array ) ) {
 			$error_aray = $statement_object->errorInfo();
-			trigger_error( $error_aray[2]."<br>\n".$query_string, E_USER_ERROR );
+			trigger_error( $error_aray[2], E_USER_ERROR );
 		}
 	}
 	
