@@ -69,8 +69,7 @@ class Sqloo_Query
 	
 	public function __destruct()
 	{
-		if( $this->_statement_object )
-			$this->_statement_object->closeCursor();
+		$this->_releaseStatementObject();
 	}
 	
 	/**
@@ -115,12 +114,11 @@ class Sqloo_Query
 	*	@return	mixed	The attribute value
 	*/
 	
-	public function & __get( $key )
+	public function __get( $key )
 	{
 		if( ! array_key_exists( $key, $this->_query_data ) )
 			trigger_error( "Bad key: $key", E_USER_ERROR );
 		
-		$this->_statement_object = NULL;
 		return $this->_query_data[$key];
 	}
 	
@@ -138,7 +136,7 @@ class Sqloo_Query
 		if( ! array_key_exists( $key, $this->_query_data ) )
 			trigger_error( "Bad key: $key", E_USER_ERROR );
 		
-		$this->_statement_object = NULL;
+		$this->_releaseStatementObject();
 		$this->_query_data[$key] = $value;
 	}
 	
@@ -151,10 +149,11 @@ class Sqloo_Query
 	
 	public function run( $parameters_array = NULL )
 	{
-		if( ! $this->_statement_object ) {
+		if( ! $this->_statement_object )
 			$this->_statement_object = $this->_sqloo->prepare( $this->getQueryString(), TRUE );
-		}
+		
 		$this->_sqloo->execute( $this->_statement_object, $parameters_array );
+		
 		require_once( "Query/Results.php" );
 		return new Sqloo_Query_Results( $this->_statement_object );
 	}
@@ -179,6 +178,14 @@ class Sqloo_Query
 	
 	/* Inner workings */
 	
+	private function _releaseStatementObject()
+	{
+		if( $this->_statement_object ) {
+			$this->_statement_object->closeCursor();
+			$this->_statement_object = NULL;
+		}
+	}
+	
 	private function _getSelectString()
 	{
 		$select_string = $this->_query_data["distinct"] ? "SELECT DISTINCT\n" : "SELECT\n";
@@ -193,13 +200,13 @@ class Sqloo_Query
 	
 	private function _getFromString()
 	{
-		if( ( $this->_root_query_table_class === NULL ) && ( $this->_union_array === NULL ) ) 
+		if( ( ! $this->_root_query_table_class ) && ( ! $this->_union_array ) ) 
 			trigger_error( "Root table is not set", E_USER_ERROR );
-		if( ( $this->_root_query_table_class !== NULL ) && ( $this->_union_array !== NULL ) )
+		if( ( $this->_root_query_table_class ) && ( $this->_union_array ) )
 			trigger_error( "Nothing set", E_USER_ERROR );
 		
 		$from_string = "FROM ";
-		if( $this->_root_query_table_class !== NULL ) {
+		if( $this->_root_query_table_class ) {
 			$from_string .= "\"".$this->_root_query_table_class->getTableName()."\"\n";
 			foreach( $this->_getJoinData( $this->_root_query_table_class ) as $join_data ) {
 				switch( $join_data["type"] ) {
@@ -255,13 +262,12 @@ class Sqloo_Query
 	
 	private function _getOrderString()
 	{
+		$order_string = "";
 		if( count( $this->_query_data["order"] ) > 0 ) {
-			$order_string = "ORDER BY ";
+			$order_string .= "ORDER BY ";
 			foreach( $this->_query_data["order"] as $reference => $order_type )
 				$order_string .= $reference." ".$order_type.", ";
 			$order_string = substr( $order_string, 0, -2 )."\n";
-		} else {
-			$order_string = "";
 		}
 		return $order_string;
 	}
