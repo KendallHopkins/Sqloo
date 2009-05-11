@@ -114,11 +114,12 @@ class Sqloo_Query
 	*	@return	mixed	The attribute value
 	*/
 	
-	public function __get( $key )
+	public function & __get( $key )
 	{
 		if( ! array_key_exists( $key, $this->_query_data ) )
 			trigger_error( "Bad key: $key", E_USER_ERROR );
 		
+		$this->_releaseStatementObject();
 		return $this->_query_data[$key];
 	}
 	
