@@ -60,6 +60,8 @@ class Sqloo_Datatypes_Mysql implements Sqloo_Datatypes
 					( $attributes_array["size"] <= ( pow( 2, 24 ) - 3 ) ? "mediumblob" : 
 					( $attributes_array["size"] <= ( pow( 2, 32 ) - 4 ) ? "longblob" : 
 					( trigger_error( "File size is to big for mysql", E_USER_ERROR ) ) ) ) ) ) ) );
+		case Sqloo::DATATYPE_TIME:
+			return "timestamp";
 		case Sqloo::DATATYPE_OVERRIDE:
 			return $attributes_array["override"];
 		default:

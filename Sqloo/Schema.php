@@ -24,7 +24,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-require_once( "Query/Results.php" );
 require_once( "Datatypes.php" );
 
 /** @access private */

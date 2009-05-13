@@ -51,6 +51,8 @@ class Sqloo_Datatypes_Postgres implements Sqloo_Datatypes
 					( "character varying(".(int)$attributes_array["size"].")" ) );
 		case Sqloo::DATATYPE_FILE: 
 			return "Oid";
+		case Sqloo::DATATYPE_TIME:
+			return "timestamp";
 		case Sqloo::DATATYPE_OVERRIDE:
 			return $attributes_array["override"];
 		default: 

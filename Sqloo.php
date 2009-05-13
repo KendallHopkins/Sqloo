@@ -70,7 +70,8 @@ class Sqloo
 	const DATATYPE_FLOAT = 3;
 	const DATATYPE_STRING = 4;
 	const DATATYPE_FILE = 5;
-	const DATATYPE_OVERRIDE = 6;
+	const DATATYPE_TIME = 6;
+	const DATATYPE_OVERRIDE = 7;
 	
 	//Query Types (private)
 	/** @access private */
