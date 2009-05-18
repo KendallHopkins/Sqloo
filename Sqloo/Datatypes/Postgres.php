@@ -36,7 +36,7 @@ class Sqloo_Datatypes_Postgres implements Sqloo_Datatypes
 		switch( $attributes_array["type"] ) {
 		case Sqloo::DATATYPE_BOOLEAN:
 			return "boolean";
-		case Sqloo::DATATYPE_INTERGER: 
+		case Sqloo::DATATYPE_INTEGER: 
 			return 	( ( ! array_key_exists( "size", $attributes_array ) ) ? "integer" :
 					( $attributes_array["size"] <= 2 ? "smallint" : 
 					( $attributes_array["size"] <= 4 ? "integer" : 

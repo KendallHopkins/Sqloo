@@ -35,16 +35,17 @@ class Sqloo_Datatypes_Mysql implements Sqloo_Datatypes
 	{
 		switch( $attributes_array["type"] ) {
 		case Sqloo::DATATYPE_BOOLEAN: return "tinyint(1)";
-		case Sqloo::DATATYPE_INTERGER: 
+		case Sqloo::DATATYPE_INTEGER: 
 			return 	( ( ! array_key_exists( "size", $attributes_array ) ) ? "int(11)" :
 					( $attributes_array["size"] <= 2 ? "smallint(6)" : 
 					( $attributes_array["size"] <= 4 ? "int(11)" : 
 			       	( $attributes_array["size"] <= 8 ? "bigint(20)" : 
 			       	("numeric(".(int)( floor( log( $attributes_array["size"], 10 ) ) + 1 ).",0)" ) ) ) ) ); //fix me
 		case Sqloo::DATATYPE_FLOAT: 
-			return 	( $size <= 6 ? "real" : 
+			return 	( ( ! array_key_exists( "size", $attributes_array ) ) ? "double" :
+					( $size <= 6 ? "double" : 
 					( $size <= 15 ? "double" : 
-					( trigger_error( "Size for a float is to large: ".$size, E_USER_ERROR ) ) ) );
+					( trigger_error( "Size for a float is to large: ".$size, E_USER_ERROR ) ) ) ) );
 		case Sqloo::DATATYPE_STRING: 
 			return 	( ( ! array_key_exists( "size", $attributes_array ) ) ? "text" : 
 					( $attributes_array["size"] <= ( pow( 2, 8 ) - 1 ) ? "varchar(".(int)$attributes_array["size"].")" : 

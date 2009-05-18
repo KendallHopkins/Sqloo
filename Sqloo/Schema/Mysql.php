@@ -58,6 +58,7 @@ class Sqloo_Schema_Mysql extends Sqloo_Schema
 			}
 			$this->_sqloo->query( "SET FOREIGN_KEY_CHECKS=1" );
 		}
+		print $log_string;
 		return $log_string;
 	}
 	

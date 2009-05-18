@@ -266,7 +266,7 @@ class Sqloo_Query
 				}
 			}
 		} else {
-			$from_string .= "( ".implode( " )\nUNION\n( ", $array_of_queries )." ) union_name";
+			$from_string .= "( ( ".implode( " )\nUNION\n( ", $this->_union_array )." ) ) union_name";
 		}
 		return $from_string;
 	}

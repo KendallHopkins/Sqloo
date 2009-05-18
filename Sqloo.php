@@ -66,7 +66,7 @@ class Sqloo
 	
 	//Datatypes
 	const DATATYPE_BOOLEAN = 1;
-	const DATATYPE_INTERGER = 2;
+	const DATATYPE_INTEGER = 2;
 	const DATATYPE_FLOAT = 3;
 	const DATATYPE_STRING = 4;
 	const DATATYPE_FILE = 5;
@@ -180,7 +180,7 @@ class Sqloo
 	{	
 		if( ! $statement_object->execute( $parameters_array ) ) {
 			$error_aray = $statement_object->errorInfo();
-			trigger_error( $error_aray[2], E_USER_ERROR );
+			trigger_error( $error_aray[2]."<br>\n".$statement_object->queryString, E_USER_ERROR );
 		}
 	}
 	
@@ -268,6 +268,16 @@ class Sqloo
 			$value_array = array();
 			$escaped_value_array = array();
 			
+			//build query string
+			foreach( array_values( $insert_array_or_query ) as $value ) {
+				if( is_array( $value ) ) { //string inside an array is "safe"
+					$escaped_value_array = $value[0];
+				} else { //else it's dirty
+					$escaped_value_array[] = "?";
+					$value_array[] = $value;
+				}
+			}
+			
 			//check if we have a "magic" added/modifed field
 			foreach( array( "added", "modified" ) as $magic_column ) {
 				if( array_key_exists( $magic_column, $table_column_array ) &&
@@ -278,16 +288,7 @@ class Sqloo
 				}
 			}
 			
-			//build query string
-			foreach( array_values( $insert_array_or_query ) as $value ) {
-				if( is_array( $value ) ) { //string inside an array is "safe"
-					$escaped_value_array = $value[0];
-				} else { //else it's dirty
-					$escaped_value_array[] = "?";
-					$value_array[] = $value;
-				}
-			}
-			$insert_string .= "(".implode( ",", $column_array ).") VALUES(".implode( ",", $escaped_value_array ).")";
+			$insert_string .= "(\"".implode( "\",\"", $column_array )."\") VALUES(".implode( ",", $escaped_value_array ).")";
 			$this->query( $insert_string, $value_array );
 		} else if( is_object( $insert_array_or_query ) && ( $insert_array_or_query instanceof Sqloo_Query ) ) {
 			//check if we have a "magic" added/modifed field
@@ -328,21 +329,23 @@ class Sqloo
 		//check if we have a "magic" modifed field
 		if( array_key_exists( "modified", $this->_getTable($table_name)->column ) )
 			$update_string .= "modified=CURRENT_TIMESTAMP,";
+		
 		//add other fields
 		foreach( array_keys( $update_array ) as $key )
 			$update_string .= $key."=?,";
-		$update_string = substr( $update_string, -1, 0 )."\n";
 		
+		$update_string = substr( $update_string, 0, -1 )."\n";
 		if( is_array( $id_array_or_where_string ) ) {
 			$id_array_count = count( $id_array_or_where_string );
 			if( ! $id_array_count ) trigger_error( "id_array of 0 size", E_USER_ERROR );
 			$update_string .= 
 				"WHERE id IN (".implode( ",", array_fill( 0, count( $id_array_or_where_string ), "?" ) ).")\n".
 				"LIMIT ".$id_array_count."\n";
-			$this->query( $update_string, array_merge( array_values( $id_array_or_where_string ), $id_array_or_where_string ) );
+
+			$this->query( $update_string, array_merge( array_values( $update_array ), array_values( $id_array_or_where_string ) ) );
 		} else if( is_string( $id_array_or_where_string ) ) {
 			$update_string .= "WHERE ".$id_array_or_where_string;
-			$this->query( $update_string, array_values( $id_array_or_where_string ));
+			$this->query( $update_string, array_values( $update_array ) );
 		} else {
 			trigger_error( "bad input type", E_USER_ERROR );
 		}
@@ -357,12 +360,13 @@ class Sqloo
 	
 	public function delete( $table_name, $id_array )
 	{
+
 		$delete_string = "DELETE FROM \"".$table_name."\"\n";
-		if( is_array( $id_array_or_where_string ) ) {
+		if( is_array( $id_array ) ) {
 			$id_array_count = count( $id_array );
 			if ( ! $id_array_count ) trigger_error( "id_array of 0 size", E_USER_ERROR );
-			$delete_string .= "WHERE id IN (".array_fill( 0, count( $id_array_or_where_string ), "?" ).")";
-			$this->query( $delete_string, array_values( $id_array_or_where_string ) );
+			$delete_string .= "WHERE id IN (".implode( ",", array_fill( 0, count( $id_array ) , "?" ) ).")";
+			$this->query( $delete_string, array_values( $id_array ) );
 		} else {
 			trigger_error( "bad input type", E_USER_ERROR );
 		}
@@ -379,7 +383,6 @@ class Sqloo
 	
 	public function union( $array_of_queries )
 	{
-		if( count( $array_of_queries ) < 2 ) trigger_error( "union must have more than 1 query objects", E_USER_ERROR );
 		return new Sqloo_Query( $this, $array_of_queries );
 	}
 	
@@ -486,7 +489,7 @@ class Sqloo
 	
 	/* Private Functions */
 	
-	private function _getTable( $table_name )
+	public function _getTable( $table_name )
 	{
 		if( ! array_key_exists( $table_name, $this->_table_array ) )
 			$this->_loadTable( $table_name );
@@ -521,7 +524,6 @@ class Sqloo
 		static $database_object_array = array();
 		if( ! array_key_exists( $type_id, $database_object_array ) ) {
 			$configuration_array = $this->_getDatabaseConfiguration( $type_id );
-			
 			$database_object_array[$type_id] = new PDO( 
 				$configuration_array["type"].":dbname=".$configuration_array["name"].";host=".$configuration_array["address"], 
 				$configuration_array["username"], 

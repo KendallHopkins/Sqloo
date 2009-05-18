@@ -33,7 +33,7 @@ abstract class Sqloo_Schema
 	
 	private $_column_default_attributes = array(
 		Sqloo::COLUMN_DATA_TYPE => array(
-			"type" => Sqloo::DATATYPE_INTERGER,
+			"type" => Sqloo::DATATYPE_INTEGER,
 			"size" => 4
 		),
 		Sqloo::COLUMN_ALLOW_NULL => FALSE,
