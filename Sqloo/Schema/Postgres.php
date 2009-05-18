@@ -70,7 +70,6 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 			//change columns
 			if( ! array_key_exists( "action", $table_array ) ) { //alter table
 				foreach( $table_array["column"] as $column_name => $column_array ) {
-					//print_r( $column_array );					
 				}
 			} else if( $table_array["action"] === "add" ) { //create table
 				$query_string = "CREATE TABLE \"".$table_name."\" (\n";
