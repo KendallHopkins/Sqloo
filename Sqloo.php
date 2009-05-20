@@ -383,7 +383,12 @@ class Sqloo
 	
 	public function union( $array_of_queries )
 	{
-		return new Sqloo_Query( $this, $array_of_queries );
+		$query_union = new Sqloo_Query( $this, $array_of_queries );
+		$first_query = array_shift( $array_of_queries );
+		foreach( $first_query->column as $column_name => $column_value ) {
+			$query_union->column[$column_name] = $column_name;
+		}
+		return $query_union;
 	}
 	
 	/**

@@ -241,7 +241,7 @@ class Sqloo_Query
 		
 		$from_string = "FROM ";
 		if( $this->_root_query_table_class ) {
-			$from_string .= "\"".$this->_root_query_table_class->getTableName()."\"\n";
+			$from_string .= "\"".$this->_root_query_table_class->getTableName()."\" AS \"".$this->_root_query_table_class->getReference()."\"\n";
 			foreach( $this->_getJoinData( $this->_root_query_table_class ) as $join_data ) {
 				switch( $join_data["type"] ) {
 				case Sqloo_Query_Table::JOIN_CHILD:
@@ -266,7 +266,7 @@ class Sqloo_Query
 				}
 			}
 		} else {
-			$from_string .= "( ( ".implode( " )\nUNION\n( ", $this->_union_array )." ) ) union_name";
+			$from_string .= "( ( ".implode( " )\nUNION\n( ", $this->_union_array )." ) ) union_name\n";
 		}
 		return $from_string;
 	}
