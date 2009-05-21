@@ -180,7 +180,15 @@ class Sqloo
 	{	
 		if( ! $statement_object->execute( $parameters_array ) ) {
 			$error_aray = $statement_object->errorInfo();
-			trigger_error( $error_aray[2]."<br>\n".$statement_object->queryString, E_USER_ERROR );
+			$error_string = $error_aray[2]."<br>\n".$statement_object->queryString;
+			if( $parameters_array !== NULL ) {
+				$parameters_string = "";
+				foreach( $parameters_array as $key => $value ) {
+					$parameters_string .= "$key => $value, ";
+				}
+				$error_string .= "\narray(".substr( $parameters_string, 0, -2 )." )";
+			}
+			trigger_error( $error_string, E_USER_ERROR );
 		}
 	}
 	
