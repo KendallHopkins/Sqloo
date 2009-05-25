@@ -261,6 +261,10 @@ class Sqloo_Query
 						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
 						"ON \"".$join_data["reference_to"]."\".id = \"".$join_data["reference_nm"]."\".".$join_data["table_to"]."\n";
 					break;
+				case Sqloo_Query_Table::JOIN_CROSS:
+					$from_string .= 
+						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n";
+					break;
 				default:
 					trigger_error( "Bad join type, type_id: ".$join_data["type"], E_USER_ERROR );
 				}
