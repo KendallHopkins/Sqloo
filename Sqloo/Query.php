@@ -263,8 +263,15 @@ class Sqloo_Query
 					break;
 				case Sqloo_Query_Table::JOIN_CROSS:
 					$from_string .= 
-						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n";
+						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
+						"ON 1\n";
 					break;
+				case Sqloo_Query_Table::JOIN_CUSTOM_ON:
+					$from_string .= 
+						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
+						"ON ".$join_data["on_string"]."\n";
+					break;
+					
 				default:
 					trigger_error( "Bad join type, type_id: ".$join_data["type"], E_USER_ERROR );
 				}

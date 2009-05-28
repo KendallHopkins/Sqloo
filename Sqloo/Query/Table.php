@@ -35,6 +35,8 @@ class Sqloo_Query_Table
 	const JOIN_NM = 3;
 	/** @access private */
 	const JOIN_CROSS = 4;
+	/** @access private */
+	const JOIN_CUSTOM_ON = 5;
 	
 	//this ensure you can union simlar queries without naming overlap
 	static private $_unique_table_iterator = 0;
@@ -109,7 +111,7 @@ class Sqloo_Query_Table
 		return $new_sqloo_query_table;
 	}
 	
-	public function joinCross( $table_name )
+	public function joinCross( $table_name, $join_type = Sqloo::JOIN_INNER )
 	{
 		$cross_table = new self( $table_name, $this->_reference."||".$table_name );
 		$this->_join_data[] = array(
@@ -117,7 +119,22 @@ class Sqloo_Query_Table
 			"class" => $cross_table,
 			"table_to" => $table_name,
 			"reference_to" => $cross_table->getReference(),
-			"join_type" => Sqloo::JOIN_INNER
+			"join_type" => $join_type
+		);
+
+		return $cross_table;
+	}
+	
+	public function joinCustomOn( $table_name, &$on_string, $join_type = Sqloo::JOIN_INNER )
+	{
+		$cross_table = new self( $table_name, $this->_reference."||".$table_name );
+		$this->_join_data[] = array(
+			"type" => Sqloo_Query_Table::JOIN_CUSTOM_ON,
+			"class" => $cross_table,
+			"table_to" => $table_name,
+			"reference_to" => $cross_table->getReference(),
+			"on_string" => &$on_string,
+			"join_type" => $join_type
 		);
 
 		return $cross_table;
