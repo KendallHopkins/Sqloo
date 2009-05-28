@@ -366,15 +366,18 @@ class Sqloo
 	*	@param	array	Array of positive int values that are the id's for the rows you want to delete
 	*/
 	
-	public function delete( $table_name, $id_array )
+	public function delete( $table_name, $id_array_or_where_string )
 	{
 
 		$delete_string = "DELETE FROM \"".$table_name."\"\n";
-		if( is_array( $id_array ) ) {
-			$id_array_count = count( $id_array );
+		if( is_array( $id_array_or_where_string ) ) {
+			$id_array_count = count( $id_array_or_where_string );
 			if ( ! $id_array_count ) trigger_error( "id_array of 0 size", E_USER_ERROR );
-			$delete_string .= "WHERE id IN (".implode( ",", array_fill( 0, count( $id_array ) , "?" ) ).")";
-			$this->query( $delete_string, array_values( $id_array ) );
+			$delete_string .= "WHERE id IN (".implode( ",", array_fill( 0, $id_array_count , "?" ) ).")";
+			$this->query( $delete_string, array_values( $id_array_or_where_string ) );
+		} else if( is_string( $id_array_or_where_string ) ) {
+			$delete_string .= "WHERE ".$id_array_or_where_string;
+			$this->query( $delete_string );
 		} else {
 			trigger_error( "bad input type", E_USER_ERROR );
 		}
