@@ -187,7 +187,7 @@ class Sqloo_Schema_Mysql extends Sqloo_Schema
 		return
 			$this->_sqloo->getTypeString( $target_attribute_array[Sqloo::COLUMN_DATA_TYPE] ).
 			( ( $target_attribute_array[Sqloo::COLUMN_ALLOW_NULL] ) ? " NULL" : " NOT NULL" ).
-			( ( $target_attribute_array[Sqloo::COLUMN_DEFAULT_VALUE] !== NULL ) ? " DEFAULT '".$target_attribute_array[Sqloo::COLUMN_DEFAULT_VALUE]."'" : "" ).
+			( ( $target_attribute_array[Sqloo::COLUMN_DEFAULT_VALUE] !== NULL ) ? " DEFAULT ".$this->_sqloo->quote( $target_attribute_array[Sqloo::COLUMN_DEFAULT_VALUE] ) : "" ).
 			( ( $target_attribute_array[Sqloo::COLUMN_AUTO_INCREMENT] ) ? " AUTO_INCREMENT" : "" );
 	}
 	

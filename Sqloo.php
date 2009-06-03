@@ -584,6 +584,19 @@ class Sqloo
 		return $database_configuration_array[$type_id];
 	}
 	
+	public function quote( $variable )
+	{
+		if( is_bool( $variable ) ) {
+			return $variable ? "TRUE" : "FALSE";
+		} else if( is_int( $variable ) ) {
+			return $variable;
+		} else if( is_float( $variable ) ) {
+			return $variable;
+		} else {
+			return $this->_getDatabaseResource( self::QUERY_MASTER )->quote( $variable );
+		}
+	}
+	
 }
 
 ?>

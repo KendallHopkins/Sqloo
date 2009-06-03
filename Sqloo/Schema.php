@@ -254,7 +254,7 @@ abstract class Sqloo_Schema
 		}
 	}
 	
-	private function _getColumnDifference( $column_data_array, $target_column_data_array)
+	private function _getColumnDifference( $column_data_array, $target_column_data_array )
 	{
 		$modify_array = array();
 		foreach( $target_column_data_array as $table_name => $column_array ) {
@@ -268,7 +268,7 @@ abstract class Sqloo_Schema
 					$column_attribute_array = $column_data_array[$table_name][$column_name];
 					if( ( $this->_sqloo->getTypeString( $target_column_attribute_array[Sqloo::COLUMN_DATA_TYPE] ) === $column_attribute_array[Sqloo::COLUMN_DATA_TYPE] ) &&
 						( $target_column_attribute_array[Sqloo::COLUMN_ALLOW_NULL] === $column_attribute_array[Sqloo::COLUMN_ALLOW_NULL] ) &&
-						( $target_column_attribute_array[Sqloo::COLUMN_DEFAULT_VALUE] === $column_attribute_array[Sqloo::COLUMN_DEFAULT_VALUE] ) &&
+						( $target_column_attribute_array[Sqloo::COLUMN_DEFAULT_VALUE] == $column_attribute_array[Sqloo::COLUMN_DEFAULT_VALUE] ) && /* i hate doing a non-strict compare */
 						( $target_column_attribute_array[Sqloo::COLUMN_PRIMARY_KEY] === $column_attribute_array[Sqloo::COLUMN_PRIMARY_KEY] ) &&
 						( $target_column_attribute_array[Sqloo::COLUMN_AUTO_INCREMENT] === $column_attribute_array[Sqloo::COLUMN_AUTO_INCREMENT] )
 					) {

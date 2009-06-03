@@ -26,7 +26,7 @@ THE SOFTWARE.
 
 require( "Query/Table.php" );
 
-class Sqloo_Query
+class Sqloo_Query implements Iterator
 {
 	
 	private $_sqloo;
@@ -328,6 +328,35 @@ class Sqloo_Query
 		}
 		return $limit_string;		
 	}
+	
+	/* ITERATOR INTERFACE */
+	
+	private $position = NULL;
+	private $_current_row = NULL;
+	
+	
+	function rewind() {
+        $this->position = 0;
+        $this->_current_row = $this->fetchRow();
+    }
+
+    function current() {
+        return $this->_current_row;
+    }
+
+    function key() {
+        return $this->position;
+    }
+
+    function next() {
+        ++$this->position;
+        $this->_current_row = $this->fetchRow();
+    }
+
+    function valid() {
+        return $this->_current_row !== FALSE;
+    }
+	
 		
 }
 
