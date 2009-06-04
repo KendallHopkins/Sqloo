@@ -597,6 +597,21 @@ class Sqloo
 		}
 	}
 	
+	static public function inArray( $array, &$unescaped_array )
+	{
+		static $in_array_index = 0;
+		++$in_array_index; //keeps the unescaped array names from conflicting
+
+		$i = 0;
+		$in_array_keys = array();
+		foreach( $array as $in_array_item ) {
+			$key = "_in_a_".++$i."_".$in_array_index;
+			$unescaped_array[$key] = $in_array_item;
+			$in_array_keys[] = ":".$key;
+		}
+		return "IN (".implode( ",", $in_array_keys ).")";
+	}
+	
 }
 
 ?>
