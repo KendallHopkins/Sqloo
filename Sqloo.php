@@ -267,17 +267,17 @@ class Sqloo
 	*	@return	int		The id of the inserted row
 	*/
 	
-	public function insert( $table_name, $insert_array_or_query )
+	public function insert( $table_name, $insert_array )
 	{		
-		$insert_string = "INSERT INTO \"".$table_name."\"\n";
-		$table_column_array = $this->_getTable( $table_name )->column;
-		if( is_array( $insert_array_or_query ) ) {
-			$column_array = array_keys( $insert_array_or_query );
+		if( is_array( $insert_array ) ) {
+			$insert_string = "INSERT INTO \"".$table_name."\"\n";
+			$table_column_array = $this->_getTable( $table_name )->column;
+			$column_array = array_keys( $insert_array );
 			$value_array = array();
 			$escaped_value_array = array();
 			
 			//build query string
-			foreach( array_values( $insert_array_or_query ) as $value ) {
+			foreach( array_values( $insert_array ) as $value ) {
 				if( is_array( $value ) ) { //string inside an array is "safe"
 					$escaped_value_array = $value[0];
 				} else { //else it's dirty
@@ -298,22 +298,39 @@ class Sqloo
 			
 			$insert_string .= "(\"".implode( "\",\"", $column_array )."\") VALUES(".implode( ",", $escaped_value_array ).")";
 			$this->query( $insert_string, $value_array );
-		} else if( is_object( $insert_array_or_query ) && ( $insert_array_or_query instanceof Sqloo_Query ) ) {
-			//check if we have a "magic" added/modifed field
-			foreach( array( "added", "modified" ) as $magic_column ) {
-				if( array_key_exists( $magic_column, $table_column_array ) && ( ! array_key_exists( $magic_column, $insert_array_or_query->column ) ) ) 
-					$insert_array_or_query->column[$magic_column] = "CURRENT_TIMESTAMP";
-			}
-
-			$insert_string .= 
-				" (".implode( ",", array_keys( $insert_array_or_query->column ) ).")\n".
-				(string)$insert_array_or_query; //transform object to string (function __toString)
-			
-			$this->query( $insert_string );
 		} else {
-			trigger_error( "bad input type: ".get_type( $insert_array_or_query ), E_USER_ERROR );
+			trigger_error( "bad input type: ".get_type( $insert_array ), E_USER_ERROR );
 		}
 			
+		return $this->_getDatabaseResource( self::QUERY_MASTER )->lastInsertId( $table_name."_id_seq" );
+	}
+	
+	public function insertQuery( $table_name, $query, $unescaped_array = NULL )
+	{
+		if( is_object( $query ) && ( $query instanceof Sqloo_Query ) ) {
+			$insert_string = "INSERT INTO \"".$table_name."\"\n";
+			/*
+$table_column_array = $this->_getTable( $table_name )->column;
+			//check if we have a "magic" added/modifed field
+			foreach( array( "added", "modified" ) as $magic_column ) {
+				if( array_key_exists( $magic_column, $table_column_array ) && ( ! array_key_exists( $magic_column, $query->column ) ) ) 
+					$query->column[$magic_column] = "CURRENT_TIMESTAMP";
+			}
+*/
+
+			$insert_string .= 
+				" (".implode( ",", array_keys( $query->column ) ).")\n".
+				(string)$query; //transform object to string (function __toString)
+			
+			if( $unescaped_array !== NULL ) {
+				$this->query( $insert_string, $unescaped_array );
+			} else {
+				$this->query( $insert_string );
+			}
+		} else {
+			trigger_error( "bad input type: ".get_type( $query ), E_USER_ERROR );
+		}
+		
 		return $this->_getDatabaseResource( self::QUERY_MASTER )->lastInsertId( $table_name."_id_seq" );
 	}
 	
@@ -595,21 +612,6 @@ class Sqloo
 		} else {
 			return $this->_getDatabaseResource( self::QUERY_MASTER )->quote( $variable );
 		}
-	}
-	
-	static public function inArray( $array, &$unescaped_array )
-	{
-		static $in_array_index = 0;
-		++$in_array_index; //keeps the unescaped array names from conflicting
-
-		$i = 0;
-		$in_array_keys = array();
-		foreach( $array as $in_array_item ) {
-			$key = "_in_a_".++$i."_".$in_array_index;
-			$unescaped_array[$key] = $in_array_item;
-			$in_array_keys[] = ":".$key;
-		}
-		return "IN (".implode( ",", $in_array_keys ).")";
 	}
 	
 }

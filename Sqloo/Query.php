@@ -182,6 +182,29 @@ class Sqloo_Query implements Iterator
 		return $this->_statement_object->rowCount();			
 	}
 	
+	public function inArray( $array, &$unescaped_array = NULL )
+	{
+		if( is_array( $unescaped_array ) ) {
+			static $in_array_index = 0; //keeps the unescaped array keys from conflicting
+			$i = 0;
+			$in_array_keys = array();
+			$key_prefix = "_in_".$in_array_index."_";
+			foreach( $array as $in_array_item ) {
+				$key = $key_prefix.++$i;
+				$unescaped_array[$key] = $in_array_item;
+				$in_array_keys[] = ":".$key;
+			}
+			++$in_array_index;
+			return "IN (".implode( ",", $in_array_keys ).")";
+		} else {
+			foreach( $array as &$value ) {
+				$value = $this->_sqloo->quote( $value );
+			}
+			return "IN (".implode( ",", $array ).")";
+		}
+		
+	}
+	
 	/**
 	*	Fetches a row
 	*
