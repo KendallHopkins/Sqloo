@@ -26,6 +26,7 @@ THE SOFTWARE.
 
 require( "Sqloo/Query.php" );
 require( "Sqloo/Table.php" );
+require( "Sqloo/Exception.php" );
 
 class Sqloo
 {
@@ -113,7 +114,7 @@ class Sqloo
 	{
 		if( $this->_in_transaction ) {
 			$this->rollbackTransaction();
-			trigger_error( "Transaction was not close and was rolled back", E_USER_ERROR );
+			throw new Sqloo_Exception( "Transaction was not close and was rolled back", Sqloo_Exception::BAD_INPUT );
 		}
 	}
 	
@@ -123,7 +124,7 @@ class Sqloo
 	*	@access private
 	*/
 	
-	private function __clone() { trigger_error( "Clone is not allowed.", E_USER_ERROR ); }
+	private function __clone() { throw new Sqloo_Exception( "Clone is not allowed.", Sqloo_Exception::BAD_INPUT ); }
 	
 	/**
 	*	Runs the $query_string on a database determinded by the params
@@ -160,11 +161,10 @@ class Sqloo
 		try {
 			$statement_object = $database_resource->prepare( $query_string );			
 		} catch ( PDOException $exception ) {
-			trigger_error( $exception->getMessage()."<br>\n".$query_string, E_USER_ERROR );
+			throw new Sqloo_Exception( $exception->getMessage()."<br>\n".$query_string, hexdec( substr( $exception->getCode(), 0, 2 ) ) );
 		}
 		if( ! $statement_object ) {
-			$error_array = $database_resource->errorInfo();
-			trigger_error( ( array_key_exists( 2, $error_array ) ? $error_array[2] : $error_array[0] )."<br>\n".$query_string, E_USER_ERROR );
+			throw new Sqloo_Exception( $exception->getMessage()."<br>\n".$query_string, hexdec( substr( $exception->getCode(), 0, 2 ) ) );
 		}
 		return $statement_object;
 	}
@@ -179,8 +179,9 @@ class Sqloo
 	public function execute( $statement_object, $parameters_array = NULL )
 	{	
 		if( ! $statement_object->execute( $parameters_array ) ) {
-			$error_aray = $statement_object->errorInfo();
-			$error_string = $error_aray[2]."<br>\n".$statement_object->queryString;
+			$error_info = $statement_object->errorInfo();
+			$driver_message = array_key_exists( 2, $error_info ) ? $error_info[2]."<br>\n" : "";
+			$error_string = $driver_message.$statement_object->queryString;
 			if( $parameters_array !== NULL ) {
 				$parameters_string = "";
 				foreach( $parameters_array as $key => $value ) {
@@ -188,7 +189,7 @@ class Sqloo
 				}
 				$error_string .= "\narray(".substr( $parameters_string, 0, -2 )." )";
 			}
-			trigger_error( $error_string, E_USER_ERROR );
+			throw new Sqloo_Exception( $error_string, hexdec( substr( $error_info[0], 0, 2 ) ) );
 		}
 	}
 	
@@ -213,7 +214,7 @@ class Sqloo
 			$this->_getDatabaseResource( self::QUERY_MASTER )->beginTransaction();
 			$this->_in_transaction = TRUE;
 		} else {
-			trigger_error( "Already in transaction", E_USER_ERROR );		
+			throw new Sqloo_Exception( "Already in transaction", Sqloo_Exception::BAD_INPUT );		
 		}
 	}
 	
@@ -227,7 +228,7 @@ class Sqloo
 			$this->_getDatabaseResource( self::QUERY_MASTER )->rollBack();
 			$this->_in_transaction = FALSE;
 		} else {
-			trigger_error( "not in a transaction, didn't rollback", E_USER_ERROR );		
+			throw new Sqloo_Exception( "not in a transaction, didn't rollback", Sqloo_Exception::BAD_INPUT );		
 		}
 	}
 	
@@ -241,7 +242,7 @@ class Sqloo
 			$this->_getDatabaseResource( self::QUERY_MASTER )->commit();
 			$this->_in_transaction = FALSE;
 		} else {
-			trigger_error( "not in a transaction, didn't commit", E_USER_ERROR );		
+			throw new Sqloo_Exception( "not in a transaction, didn't commit", Sqloo_Exception::BAD_INPUT );		
 		}
 	}
 	
@@ -299,7 +300,7 @@ class Sqloo
 			$insert_string .= "(\"".implode( "\",\"", $column_array )."\") VALUES(".implode( ",", $escaped_value_array ).")";
 			$this->query( $insert_string, $value_array );
 		} else {
-			trigger_error( "bad input type: ".get_type( $insert_array ), E_USER_ERROR );
+			throw new Sqloo_Exception( "bad input type: ".get_type( $insert_array ), Sqloo_Exception::BAD_INPUT );
 		}
 			
 		return $this->_getDatabaseResource( self::QUERY_MASTER )->lastInsertId( $table_name."_id_seq" );
@@ -328,7 +329,7 @@ $table_column_array = $this->_getTable( $table_name )->column;
 				$this->query( $insert_string );
 			}
 		} else {
-			trigger_error( "bad input type: ".get_type( $query ), E_USER_ERROR );
+			throw new Sqloo_Exception( "bad input type: ".get_type( $query ), Sqloo_Exception::BAD_INPUT );
 		}
 		
 		return $this->_getDatabaseResource( self::QUERY_MASTER )->lastInsertId( $table_name."_id_seq" );
@@ -362,7 +363,7 @@ $table_column_array = $this->_getTable( $table_name )->column;
 		$update_string = substr( $update_string, 0, -1 )."\n";
 		if( is_array( $id_array_or_where_string ) ) {
 			$id_array_count = count( $id_array_or_where_string );
-			if( ! $id_array_count ) trigger_error( "id_array of 0 size", E_USER_ERROR );
+			if( ! $id_array_count ) throw new Sqloo_Exception( "id_array of 0 size", Sqloo_Exception::BAD_INPUT );
 			$update_string .= 
 				"WHERE id IN (".implode( ",", array_fill( 0, count( $id_array_or_where_string ), "?" ) ).")\n".
 				"LIMIT ".$id_array_count."\n";
@@ -372,7 +373,7 @@ $table_column_array = $this->_getTable( $table_name )->column;
 			$update_string .= "WHERE ".$id_array_or_where_string;
 			$this->query( $update_string, array_values( $update_array ) );
 		} else {
-			trigger_error( "bad input type", E_USER_ERROR );
+			throw new Sqloo_Exception( "bad input type", Sqloo_Exception::BAD_INPUT );
 		}
 	}
 	
@@ -389,14 +390,14 @@ $table_column_array = $this->_getTable( $table_name )->column;
 		$delete_string = "DELETE FROM \"".$table_name."\"\n";
 		if( is_array( $id_array_or_where_string ) ) {
 			$id_array_count = count( $id_array_or_where_string );
-			if ( ! $id_array_count ) trigger_error( "id_array of 0 size", E_USER_ERROR );
+			if ( ! $id_array_count ) throw new Sqloo_Exception( "id_array of 0 size", Sqloo_Exception::BAD_INPUT );
 			$delete_string .= "WHERE id IN (".implode( ",", array_fill( 0, $id_array_count , "?" ) ).")";
 			$this->query( $delete_string, array_values( $id_array_or_where_string ) );
 		} else if( is_string( $id_array_or_where_string ) ) {
 			$delete_string .= "WHERE ".$id_array_or_where_string;
 			$this->query( $delete_string );
 		} else {
-			trigger_error( "bad input type", E_USER_ERROR );
+			throw new Sqloo_Exception( "bad input type", Sqloo_Exception::BAD_INPUT );
 		}
 	}
 	
@@ -494,7 +495,7 @@ $table_column_array = $this->_getTable( $table_name )->column;
 			require_once( "Sqloo/Datatypes/Postgres.php" );
 			return Sqloo_Datatypes_Postgres::getTypeString( $attributes_array );
 			break;
-		default: trigger_error( "Unknown database: ".$database_configuration["type"], E_USER_ERROR );
+		default: throw new Sqloo_Exception( "Unknown database: ".$database_configuration["type"], Sqloo_Exception::BAD_INPUT );
 		}
 	}
 	
@@ -510,7 +511,7 @@ $table_column_array = $this->_getTable( $table_name )->column;
 		switch( $database_configuration["type"] ) {
 		case "mysql": $file_name = "Mysql"; break;
 		case "pgsql": $file_name = "Postgres"; break;
-		default: trigger_error( "Bad database type: ".$database_configuration["type"], E_USER_ERROR ); break;
+		default: throw new Sqloo_Exception( "Bad database type: ".$database_configuration["type"], Sqloo_Exception::BAD_INPUT ); break;
 		}
 
 		require_once( "Sqloo/Schema.php" );
@@ -535,7 +536,7 @@ $table_column_array = $this->_getTable( $table_name )->column;
 			if( $this->_load_table_function && is_callable( $this->_load_table_function ) )
 				call_user_func( $this->_load_table_function, $table_name, $this );
 			if( ! array_key_exists( $table_name, $this->_table_array ) )
-				trigger_error( "could not load table: ".$table_name, E_USER_ERROR );
+				throw new Sqloo_Exception( "could not load table: ".$table_name, Sqloo_Exception::BAD_INPUT );
 		}
 	}
 	
@@ -557,16 +558,21 @@ $table_column_array = $this->_getTable( $table_name )->column;
 		static $database_object_array = array();
 		if( ! array_key_exists( $type_id, $database_object_array ) ) {
 			$configuration_array = $this->_getDatabaseConfiguration( $type_id );
-			$database_object_array[$type_id] = new PDO( 
-				$configuration_array["type"].":dbname=".$configuration_array["name"].";host=".$configuration_array["address"], 
-				$configuration_array["username"], 
-				$configuration_array["password"], 
-				array(
-					PDO::ATTR_PERSISTENT => TRUE,
-					PDO::ATTR_TIMEOUT => 15,
-					PDO::MYSQL_ATTR_INIT_COMMAND => "SET sql_mode='POSTGRESQL'"
-				) 
-			);
+			try {
+				$database_object_array[$type_id] = new PDO( 
+					$configuration_array["type"].":dbname=".$configuration_array["name"].";host=".$configuration_array["address"], 
+					$configuration_array["username"], 
+					$configuration_array["password"], 
+					array(
+						PDO::ATTR_PERSISTENT => TRUE,
+						PDO::ATTR_TIMEOUT => 15,
+						PDO::MYSQL_ATTR_INIT_COMMAND => "SET sql_mode='POSTGRESQL'"
+					) 
+				);		
+			} catch ( PDOException $exception ) {
+				throw new Sqloo_Exception( $exception->getMessage(), Sqloo_Exception::CONNECTION_FAILED );
+			}
+			
 		}
 		return $database_object_array[$type_id];
 	}
@@ -583,18 +589,18 @@ $table_column_array = $this->_getTable( $table_name )->column;
 				$function_name_array = array( $this->_slave_db_function, $this->_master_db_function );
 				break;
 			default:
-				trigger_error( "Bad type_id: ".$type_string, E_USER_ERROR );
+				throw new Sqloo_Exception( "Bad type_id: ".$type_string, Sqloo_Exception::BAD_INPUT );
 			}
 			
 			do {
-				if( ! count( $function_name_array ) ) trigger_error( "No good function for setup database", E_USER_ERROR );
+				if( ! count( $function_name_array ) ) throw new Sqloo_Exception( "No good function for setup database", Sqloo_Exception::BAD_INPUT );
 				
 				$function_name = array_shift( $function_name_array );
 				if( $function_name ) {
 					if( is_callable( $function_name ) )
 						$database_configuration_array[$type_id] = call_user_func( $function_name );
 					else
-						trigger_error( "Non-existing function was referenced: ".$function_name, E_USER_WARNING );
+						throw new Sqloo_Exception( "Non-existing function was referenced: ".$function_name );
 				}
 			} while( ! array_key_exists( $type_id, $database_configuration_array ) );
 		}

@@ -45,7 +45,7 @@ class Sqloo_Datatypes_Postgres implements Sqloo_Datatypes
 		case Sqloo::DATATYPE_FLOAT: 
 			return 	( $attributes_array["size"] <= 6 ? "real" : 
 					( $attributes_array["size"] <= 15 ? "double precision" : 
-					( trigger_error( "Size for a float is to large: ".$attributes_array["size"], E_USER_ERROR ) ) ) );
+					( throw new Sqloo_Exception( "Size for a float is to large: ".$attributes_array["size"], Sqloo_Exception::BAD_INPUT ) ) ) );
 		case Sqloo::DATATYPE_STRING: 
 			return	( ( ! array_key_exists( "size", $attributes_array ) ) ? "text" : 
 					( "character varying(".(int)$attributes_array["size"].")" ) );
@@ -56,7 +56,7 @@ class Sqloo_Datatypes_Postgres implements Sqloo_Datatypes
 		case Sqloo::DATATYPE_OVERRIDE:
 			return $attributes_array["override"];
 		default: 
-			trigger_error( "Bad types: ".$attributes_array["type"], E_USER_ERROR );
+			throw new Sqloo_Exception( "Bad types: ".$attributes_array["type"], Sqloo_Exception::BAD_INPUT );
 		}
 	}
 	

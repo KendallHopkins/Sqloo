@@ -59,7 +59,7 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 					} else if( $index_array["action"] === "drop" ) { //drop table
 						$drop_index_array[] = $index_array["info"];
 					} else {
-						trigger_error( "Unknown action on column: ".$table_array["action"], E_USER_ERROR );	
+						throw new Sqloo_Exception( "Unknown action on column: ".$table_array["action"], Sqloo_Exception::BAD_INPUT );	
 					}
 				}
 				if( count( $drop_index_array ) > 0 ) {
@@ -92,7 +92,7 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 			} else if( $table_array["action"] === "drop" ) { //drop table
 				$query_array[] = "DROP TABLE \"".$table_name."\"";
 			} else {
-				trigger_error( "Unknown action on table: ".$table_array["action"], E_USER_ERROR );	
+				throw new Sqloo_Exception( "Unknown action on table: ".$table_array["action"], Sqloo_Exception::BAD_INPUT );	
 			}
 			
 			//add indexes
@@ -107,7 +107,7 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 					} else if( $index_array["action"] === "drop" ) {
 						//we already did this
 					} else {
-						trigger_error( "Unknown action on column: ".$table_array["action"], E_USER_ERROR );	
+						throw new Sqloo_Exception( "Unknown action on column: ".$table_array["action"], Sqloo_Exception::BAD_INPUT );	
 					}
 				}
 			}
@@ -200,7 +200,7 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 					if( $row_3 && array_key_exists( $row_3["attname"], $column_data ) )
 						$column_data[ $row_3["attname"] ][Sqloo::COLUMN_PRIMARY_KEY] = TRUE;
 					else {
-						trigger_error( "For some reason the key failed to resolve", E_USER_ERROR );				
+						throw new Sqloo_Exception( "For some reason the key failed to resolve", Sqloo_Exception::BAD_INPUT );				
 					}
 				}
 			}
@@ -242,7 +242,7 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 						$column_array[] = $row_2["attname"];
 					else {
 						var_dump( $row_2 );
-						trigger_error( "For some reason the key failed to resolve", E_USER_ERROR );				
+						throw new Sqloo_Exception( "For some reason the key failed to resolve", Sqloo_Exception::BAD_INPUT );				
 					}
 				}
 				$index_data[ $key_name ][ Sqloo::INDEX_COLUMN_ARRAY ] = $column_array;

@@ -98,9 +98,9 @@ class Sqloo_Query implements Iterator
 	public function table( $table_name )
 	{
 		if( $this->_root_query_table_class !== NULL )
-			trigger_error( "Root table is already set", E_USER_ERROR );
+			throw new Sqloo_Exception( "Root table is already set", Sqloo_Exception::BAD_INPUT );
 		if( $this->_union_array !== NULL )
-			trigger_error( "This is a union query", E_USER_ERROR );
+			throw new Sqloo_Exception( "This is a union query", Sqloo_Exception::BAD_INPUT );
 		
 		$this->_root_query_table_class = new Sqloo_Query_Table( $table_name );
 		return $this->_root_query_table_class;
@@ -109,7 +109,7 @@ class Sqloo_Query implements Iterator
 	/**
 	*	Returns the current value of an attribute of the query
 	*
-	*	Will trigger_error if $key is bad
+	*	Will throw exception if $key is bad
 	*	
 	*	@param	string	The attribute key
 	*	@return	mixed	The attribute value
@@ -118,7 +118,7 @@ class Sqloo_Query implements Iterator
 	public function & __get( $key )
 	{
 		if( ! array_key_exists( $key, $this->_query_data ) )
-			trigger_error( "Bad key: $key", E_USER_ERROR );
+			throw new Sqloo_Exception( "Bad key: $key", Sqloo_Exception::BAD_INPUT );
 		
 		$this->_releaseStatementObject();
 		return $this->_query_data[$key];
@@ -127,7 +127,7 @@ class Sqloo_Query implements Iterator
 	/**
 	*	Sets the current value of an attribute of the query
 	*
-	*	Will trigger_error if $key is bad
+	*	Will throw exception if $key is bad
 	*	
 	*	@param	string	The attribute key
 	*	@param	mixed	The attribute value
@@ -136,7 +136,7 @@ class Sqloo_Query implements Iterator
 	public function __set( $key, $value )
 	{
 		if( ! array_key_exists( $key, $this->_query_data ) )
-			trigger_error( "Bad key: $key", E_USER_ERROR );
+			throw new Sqloo_Exception( "Bad key: $key", Sqloo_Exception::BAD_INPUT );
 		
 		$this->_releaseStatementObject();
 		$this->_query_data[$key] = $value;
@@ -177,7 +177,7 @@ class Sqloo_Query implements Iterator
 	public function count()
 	{
 		if( ! $this->_statement_object )
-			trigger_error( "Query hasn't been run yet" );
+			throw new Sqloo_Exception( "Query hasn't been run yet", Sqloo_Exception::BAD_INPUT );
 		
 		return $this->_statement_object->rowCount();			
 	}
@@ -214,7 +214,7 @@ class Sqloo_Query implements Iterator
 	public function fetchRow()
 	{
 		if( ! $this->_statement_object )
-			trigger_error( "Query hasn't been run yet" );
+			throw new Sqloo_Exception( "Query hasn't been run yet", Sqloo_Exception::BAD_INPUT );
 	
 		return $this->_statement_object->fetch( PDO::FETCH_ASSOC );
 	}
@@ -228,7 +228,7 @@ class Sqloo_Query implements Iterator
 	public function fetchArray()
 	{
 		if( ! $this->_statement_object )
-			trigger_error( "Query hasn't been run yet" );
+			throw new Sqloo_Exception( "Query hasn't been run yet", Sqloo_Exception::BAD_INPUT );
 
 		return $this->_statement_object->fetchAll( PDO::FETCH_ASSOC );
 	}
@@ -258,9 +258,9 @@ class Sqloo_Query implements Iterator
 	private function _getFromString()
 	{
 		if( ( ! $this->_root_query_table_class ) && ( ! $this->_union_array ) ) 
-			trigger_error( "Root table is not set", E_USER_ERROR );
+			throw new Sqloo_Exception( "Root table is not set", Sqloo_Exception::BAD_INPUT );
 		if( ( $this->_root_query_table_class ) && ( $this->_union_array ) )
-			trigger_error( "Nothing set", E_USER_ERROR );
+			throw new Sqloo_Exception( "Nothing set", Sqloo_Exception::BAD_INPUT );
 		
 		$from_string = "FROM ";
 		if( $this->_root_query_table_class ) {
@@ -296,7 +296,7 @@ class Sqloo_Query implements Iterator
 					break;
 					
 				default:
-					trigger_error( "Bad join type, type_id: ".$join_data["type"], E_USER_ERROR );
+					throw new Sqloo_Exception( "Bad join type, type_id: ".$join_data["type"], Sqloo_Exception::BAD_INPUT );
 				}
 			}
 		} else {
