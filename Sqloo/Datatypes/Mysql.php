@@ -42,25 +42,25 @@ class Sqloo_Datatypes_Mysql implements Sqloo_Datatypes
 			       	( $attributes_array["size"] <= 8 ? "bigint(20)" : 
 			       	("numeric(".(int)( floor( log( $attributes_array["size"], 10 ) ) + 1 ).",0)" ) ) ) ) ); //fix me
 		case Sqloo::DATATYPE_FLOAT: 
-			return 	( ( ! array_key_exists( "size", $attributes_array ) ) ? "double" :
-					( $size <= 6 ? "double" : 
-					( $size <= 15 ? "double" : 
-					( throw new Sqloo_Exception( "Size for a float is to large: ".$size, Sqloo_Exception::BAD_INPUT ) ) ) ) );
+			if( ! array_key_exists( "size", $attributes_array ) ) return "double";
+			else if( $size <= 6 ) return "double";
+			else if( $size <= 15 ) return "double";
+			else throw new Sqloo_Exception( "Size for a float is to large: ".$size, Sqloo_Exception::BAD_INPUT );
 		case Sqloo::DATATYPE_STRING: 
-			return 	( ( ! array_key_exists( "size", $attributes_array ) ) ? "text" : 
-					( $attributes_array["size"] <= ( pow( 2, 8 ) - 1 ) ? "varchar(".(int)$attributes_array["size"].")" : 
-					( $attributes_array["size"] <= ( pow( 2, 16 ) - 2 ) ? "text" : 
-					( $attributes_array["size"] <= ( pow( 2, 24 ) - 3 ) ? "mediumtext" : 
-					( $attributes_array["size"] <= ( pow( 2, 32 ) - 4 ) ? "longtext" : 
-					( throw new Sqloo_Exception( "Text size is to big for mysql", Sqloo_Exception::BAD_INPUT ) ) ) ) ) ) );
+			if( ! array_key_exists( "size", $attributes_array ) ) return "text";
+			else if( $attributes_array["size"] <= ( pow( 2, 8 ) - 1 ) ) return "varchar(".(int)$attributes_array["size"].")";
+			else if( $attributes_array["size"] <= ( pow( 2, 16 ) - 2 ) ) return "text";
+			else if( $attributes_array["size"] <= ( pow( 2, 24 ) - 3 ) ) return "mediumtext";
+			else if( $attributes_array["size"] <= ( pow( 2, 32 ) - 4 ) ) return "longtext"; 
+			else throw new Sqloo_Exception( "Text size is to big for mysql", Sqloo_Exception::BAD_INPUT );
 					
 		case Sqloo::DATATYPE_FILE: 
-			return 	( ( ! array_key_exists( "size", $attributes_array ) ? "blob" : 
-					( $attributes_array["size"] <= ( pow( 2, 8 ) - 1 ) ? "tinyblob" : 
-					( $attributes_array["size"] <= ( pow( 2, 16 ) - 2 ) ? "blob" : 
-					( $attributes_array["size"] <= ( pow( 2, 24 ) - 3 ) ? "mediumblob" : 
-					( $attributes_array["size"] <= ( pow( 2, 32 ) - 4 ) ? "longblob" : 
-					( throw new Sqloo_Exception( "File size is to big for mysql", Sqloo_Exception::BAD_INPUT ) ) ) ) ) ) ) );
+			if( ! array_key_exists( "size", $attributes_array ) ) return "blob";
+			else if( $attributes_array["size"] <= ( pow( 2, 8 ) - 1 ) ) return "tinyblob";
+			else if( $attributes_array["size"] <= ( pow( 2, 16 ) - 2 ) ) return "blob"; 
+			else if( $attributes_array["size"] <= ( pow( 2, 24 ) - 3 ) ) return "mediumblob";
+			else if( $attributes_array["size"] <= ( pow( 2, 32 ) - 4 ) ) return "longblob";
+			else throw new Sqloo_Exception( "File size is to big for mysql", Sqloo_Exception::BAD_INPUT );
 		case Sqloo::DATATYPE_TIME:
 			return "timestamp";
 		case Sqloo::DATATYPE_OVERRIDE:

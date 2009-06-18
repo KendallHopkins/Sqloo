@@ -43,9 +43,9 @@ class Sqloo_Datatypes_Postgres implements Sqloo_Datatypes
 			       	( $attributes_array["size"] <= 8 ? "bigint" : 
 			       	( "numeric(".(int)( floor( log( $attributes_array["size"], 10 ) ) + 1 ).",0)") ) ) ) ); //fix this line
 		case Sqloo::DATATYPE_FLOAT: 
-			return 	( $attributes_array["size"] <= 6 ? "real" : 
-					( $attributes_array["size"] <= 15 ? "double precision" : 
-					( throw new Sqloo_Exception( "Size for a float is to large: ".$attributes_array["size"], Sqloo_Exception::BAD_INPUT ) ) ) );
+			if( $attributes_array["size"] <= 6 ) return "real";
+			else if( $attributes_array["size"] <= 15 ) return "double precision";
+			else throw new Sqloo_Exception( "Size for a float is to large: ".$attributes_array["size"], Sqloo_Exception::BAD_INPUT );
 		case Sqloo::DATATYPE_STRING: 
 			return	( ( ! array_key_exists( "size", $attributes_array ) ) ? "text" : 
 					( "character varying(".(int)$attributes_array["size"].")" ) );

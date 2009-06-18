@@ -99,7 +99,7 @@ abstract class Sqloo_Schema
 			$this->_sqloo->commitTransaction();
 		} catch( Exception $e ) {
 			$this->_sqloo->rollbackTransaction();
-			$log_string = "Schema Change Failed, Rolling back.";
+			$log_string = "Schema Change Failed, Rolling back. Message:".$e->getMessage();
 		}
 		
 		return $log_string;
