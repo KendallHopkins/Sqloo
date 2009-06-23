@@ -85,7 +85,7 @@ class Sqloo_Query implements Iterator
 	{
 		return $this->getQueryString();
 	}
-	
+		
 	/**
 	*	Set a root table
 	*
@@ -380,6 +380,7 @@ class Sqloo_Query implements Iterator
         return $this->_current_row !== FALSE;
     }
 	
+	private function __clone() {}
 		
 }
 
