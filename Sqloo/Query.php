@@ -315,7 +315,7 @@ class Sqloo_Query implements Iterator
 	
 	private function _getWhereString()
 	{
-		return ( count( $this->_query_data["where"] ) > 0 ) ? "WHERE ( ".implode( " ) &&\n( ", $this->_query_data["where"] )." )\n" : "";
+		return ( count( $this->_query_data["where"] ) > 0 ) ? "WHERE ( ".implode( " ) AND\n( ", $this->_query_data["where"] )." )\n" : "";
 	}
 	
 	private function _getGroupString()
@@ -325,7 +325,7 @@ class Sqloo_Query implements Iterator
 	
 	private function _getHavingString()
 	{
-		return ( count( $this->_query_data["having"] ) > 0 ) ? "HAVING ( ".implode( " ) &&\n( ", $this->_query_data["having"] )." )\n" : "";
+		return ( count( $this->_query_data["having"] ) > 0 ) ? "HAVING ( ".implode( " ) AND\n( ", $this->_query_data["having"] )." )\n" : "";
 	}
 	
 	private function _getOrderString()
