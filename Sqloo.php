@@ -384,18 +384,28 @@ $table_column_array = $this->_getTable( $table_name )->column;
 	*	@param	array	Array of positive int values that are the id's for the rows you want to delete
 	*/
 	
-	public function delete( $table_name, $id_array_or_where_string )
+	public function delete( $table_name, $id_array )
 	{
 
 		$delete_string = "DELETE FROM \"".$table_name."\"\n";
-		if( is_array( $id_array_or_where_string ) ) {
-			$id_array_count = count( $id_array_or_where_string );
+		if( is_array( $id_array ) ) {
+			$id_array_count = count( $id_array );
 			if ( ! $id_array_count ) throw new Sqloo_Exception( "id_array of 0 size", Sqloo_Exception::BAD_INPUT );
 			$delete_string .= "WHERE id IN (".implode( ",", array_fill( 0, $id_array_count , "?" ) ).")";
-			$this->query( $delete_string, array_values( $id_array_or_where_string ) );
-		} else if( is_string( $id_array_or_where_string ) ) {
-			$delete_string .= "WHERE ".$id_array_or_where_string;
-			$this->query( $delete_string );
+			$this->query( $delete_string, array_values( $id_array ) );
+		} else {
+			throw new Sqloo_Exception( "bad input type", Sqloo_Exception::BAD_INPUT );
+		}
+	}
+	
+	public function deleteWhere( $table_name, $where_string, $parameters_array = NULL )
+	{
+
+		if( is_string( $where_string ) ) {
+			$delete_string = 
+				"DELETE FROM \"".$table_name."\"\n".
+				"WHERE ".$where_string;
+			$this->query( $delete_string, $parameters_array );
 		} else {
 			throw new Sqloo_Exception( "bad input type", Sqloo_Exception::BAD_INPUT );
 		}
@@ -615,6 +625,8 @@ $table_column_array = $this->_getTable( $table_name )->column;
 			return $variable;
 		} else if( is_float( $variable ) ) {
 			return $variable;
+		} else if( is_null( $variable ) ) {
+			return "NULL";
 		} else {
 			return $this->_getDatabaseResource( self::QUERY_MASTER )->quote( $variable );
 		}

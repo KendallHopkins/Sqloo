@@ -248,7 +248,7 @@ class Sqloo_Query implements Iterator
 		$select_string = $this->_query_data["distinct"] ? "SELECT DISTINCT\n" : "SELECT\n";
 		if( count( $this->_query_data["column"] ) > 0 )
 			foreach( $this->_query_data["column"] as $output_name => $reference )
-				$select_string .= $reference." AS \"".$output_name."\",\n";
+				$select_string .= ( is_null( $reference ) ? "NULL" : $reference )." AS \"".$output_name."\",\n";
 		else
 			$select_string .= "* \n";
 			
