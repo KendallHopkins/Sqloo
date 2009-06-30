@@ -27,6 +27,7 @@ THE SOFTWARE.
 require( "Sqloo/Query.php" );
 require( "Sqloo/Table.php" );
 require( "Sqloo/Exception.php" );
+require( "Sqloo/Datatypes.php" );
 
 class Sqloo
 {
@@ -137,6 +138,7 @@ class Sqloo
 	
 	public function query( $query_string, $parameters_array = NULL, $on_slave = FALSE )
 	{
+		$query_string .= ";";
 		$statement_object = $this->prepare( $query_string, $on_slave );
 		$this->execute( $statement_object, $parameters_array );
 		return $statement_object;
@@ -211,7 +213,8 @@ class Sqloo
 	public function beginTransaction()
 	{
 		if( ! $this->_in_transaction ) {
-			$this->_getDatabaseResource( self::QUERY_MASTER )->beginTransaction();
+			$pdo = $this->_getDatabaseResource( self::QUERY_MASTER );
+			$pdo->beginTransaction();
 			$this->_in_transaction = TRUE;
 		} else {
 			throw new Sqloo_Exception( "Already in transaction", Sqloo_Exception::BAD_INPUT );		
@@ -225,7 +228,8 @@ class Sqloo
 	public function rollbackTransaction()
 	{
 		if( $this->_in_transaction ) {
-			$this->_getDatabaseResource( self::QUERY_MASTER )->rollBack();
+			$pdo = $this->_getDatabaseResource( self::QUERY_MASTER );
+			$pdo->rollBack();
 			$this->_in_transaction = FALSE;
 		} else {
 			throw new Sqloo_Exception( "not in a transaction, didn't rollback", Sqloo_Exception::BAD_INPUT );		
@@ -364,10 +368,7 @@ $table_column_array = $this->_getTable( $table_name )->column;
 		if( is_array( $id_array_or_where_string ) ) {
 			$id_array_count = count( $id_array_or_where_string );
 			if( ! $id_array_count ) throw new Sqloo_Exception( "id_array of 0 size", Sqloo_Exception::BAD_INPUT );
-			$update_string .= 
-				"WHERE id IN (".implode( ",", array_fill( 0, count( $id_array_or_where_string ), "?" ) ).")\n".
-				"LIMIT ".$id_array_count."\n";
-
+			$update_string .= "WHERE id IN (".implode( ",", array_fill( 0, count( $id_array_or_where_string ), "?" ) ).")\n";
 			$this->query( $update_string, array_merge( array_values( $update_array ), array_values( $id_array_or_where_string ) ) );
 		} else if( is_string( $id_array_or_where_string ) ) {
 			$update_string .= "WHERE ".$id_array_or_where_string;
@@ -495,7 +496,6 @@ $table_column_array = $this->_getTable( $table_name )->column;
 	public function getTypeString( $attributes_array )
 	{
 		$database_configuration = $this->_getDatabaseConfiguration( self::QUERY_MASTER );
-		require_once( "Sqloo/Datatypes.php" );
 		switch( $database_configuration["type"] ) {
 		case "mysql": 
 			require_once( "Sqloo/Datatypes/Mysql.php" );
@@ -504,6 +504,30 @@ $table_column_array = $this->_getTable( $table_name )->column;
 		case "pgsql": 
 			require_once( "Sqloo/Datatypes/Postgres.php" );
 			return Sqloo_Datatypes_Postgres::getTypeString( $attributes_array );
+			break;
+		default: throw new Sqloo_Exception( "Unknown database: ".$database_configuration["type"], Sqloo_Exception::BAD_INPUT );
+		}
+	}
+	
+	/**
+	*	Get's the function name for a database type.
+	*
+	*	@param	string	
+	*	@return string	type string
+	*/
+	
+	public function getFunction( $function, $content )
+	{
+		$database_configuration = $this->_getDatabaseConfiguration( self::QUERY_MASTER );
+		require_once( "Sqloo/Datatypes.php" );
+		switch( $database_configuration["type"] ) {
+		case "mysql": 
+			require_once( "Sqloo/Datatypes/Mysql.php" );
+			return Sqloo_Datatypes_Mysql::getFunction( $function, $content );
+			break;
+		case "pgsql": 
+			require_once( "Sqloo/Datatypes/Postgres.php" );
+			return Sqloo_Datatypes_Postgres::getFunction( $function, $content );
 			break;
 		default: throw new Sqloo_Exception( "Unknown database: ".$database_configuration["type"], Sqloo_Exception::BAD_INPUT );
 		}

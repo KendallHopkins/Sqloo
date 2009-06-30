@@ -71,6 +71,15 @@ class Sqloo_Datatypes_Mysql implements Sqloo_Datatypes
 		return NULL;
 	}
 	
+	static function getFunction( $function, $content )
+	{
+		switch( $function ) {
+		case Sqloo_Datatypes::TO_UNIX_TIME: return "UNIX_TIMESTAMP( {$content} )";
+		case Sqloo_Datatypes::FROM_UNIX_TIME: return "FROM_UNIXTIME( {$content} )";
+		default: throw new Sqloo_Exception( "Bad function: ".$function, Sqloo_Exception::BAD_INPUT );
+		}
+	}
+	
 }
 
 ?>

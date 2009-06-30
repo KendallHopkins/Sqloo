@@ -1,4 +1,4 @@
- <?php
+<?php
 
 /*
 The MIT License
@@ -29,6 +29,9 @@ THE SOFTWARE.
 interface Sqloo_Datatypes
 {
 	
+	const TO_UNIX_TIME = 1;
+	const FROM_UNIX_TIME = 2;
+	
 	//bool, attr = *pointless*
 	//int, attr = array( "size" ) //bytes count
 	//float, attr = array( "precision", "scale" ) //in digits
@@ -37,6 +40,7 @@ interface Sqloo_Datatypes
 	//file, attr = array( "size" ) //bytes count
 	static function getTypeString( $attributes_array );
 
+	static function getFunction( $function, $content );
 }
 
 ?>

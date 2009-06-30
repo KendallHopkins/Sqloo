@@ -42,8 +42,9 @@ class Sqloo_Datatypes_Postgres implements Sqloo_Datatypes
 					( $attributes_array["size"] <= 4 ? "integer" : 
 			       	( $attributes_array["size"] <= 8 ? "bigint" : 
 			       	( "numeric(".(int)( floor( log( $attributes_array["size"], 10 ) ) + 1 ).",0)") ) ) ) ); //fix this line
-		case Sqloo::DATATYPE_FLOAT: 
-			if( $attributes_array["size"] <= 6 ) return "real";
+		case Sqloo::DATATYPE_FLOAT:
+			if( ( ! array_key_exists( "size", $attributes_array ) ) ) return "real";
+			else if( $attributes_array["size"] <= 6 ) return "real";
 			else if( $attributes_array["size"] <= 15 ) return "double precision";
 			else throw new Sqloo_Exception( "Size for a float is to large: ".$attributes_array["size"], Sqloo_Exception::BAD_INPUT );
 		case Sqloo::DATATYPE_STRING: 
@@ -59,6 +60,16 @@ class Sqloo_Datatypes_Postgres implements Sqloo_Datatypes
 			throw new Sqloo_Exception( "Bad types: ".$attributes_array["type"], Sqloo_Exception::BAD_INPUT );
 		}
 	}
+	
+	static function getFunction( $function, $content )
+	{
+		switch( $function ) {
+		case Sqloo_Datatypes::TO_UNIX_TIME: return "EXTRACT( EPOCH FROM {$content} )";
+		case Sqloo_Datatypes::FROM_UNIX_TIME: return "to_timestamp({$content})::timestamp";
+		default: throw new Sqloo_Exception( "Bad function: ".$function, Sqloo_Exception::BAD_INPUT );
+		}
+	}
+
 	
 }
 
