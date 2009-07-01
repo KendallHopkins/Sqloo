@@ -91,7 +91,7 @@ abstract class Sqloo_Schema
 			$this->_getForeignKeyDataArray(),
 			$this->_getTargetForeignKeyDataArray( $all_tables )
 		);
-		
+
 		//correct the tables
 		$this->_sqloo->beginTransaction();
 		try {
@@ -265,7 +265,13 @@ abstract class Sqloo_Schema
 					array_key_exists( $column_name, $column_data_array[$table_name] )
 				) {
 					$column_found = TRUE;
+					
 					$column_attribute_array = $column_data_array[$table_name][$column_name];
+					//I HATE MYSQL, IT REFUSES TO HAVE NO DEFAULT VALUE ON TIMESTAMPS
+					//INSTEAD IT ASSIGN IT A DEFAULT OF "CURRENT_TIMESTAMP" or "0000-00-00 00:00:00"!
+					if( in_array( $column_attribute_array[Sqloo::COLUMN_DEFAULT_VALUE], array( "0000-00-00 00:00:00", "CURRENT_TIMESTAMP" ) ) ) {
+						$column_attribute_array[Sqloo::COLUMN_DEFAULT_VALUE] = NULL;
+					}
 					if( ( $this->_sqloo->getTypeString( $target_column_attribute_array[Sqloo::COLUMN_DATA_TYPE] ) === $column_attribute_array[Sqloo::COLUMN_DATA_TYPE] ) &&
 						( $target_column_attribute_array[Sqloo::COLUMN_ALLOW_NULL] === $column_attribute_array[Sqloo::COLUMN_ALLOW_NULL] ) &&
 						( $target_column_attribute_array[Sqloo::COLUMN_DEFAULT_VALUE] == $column_attribute_array[Sqloo::COLUMN_DEFAULT_VALUE] ) && /* i hate doing a non-strict compare */
