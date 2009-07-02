@@ -294,7 +294,7 @@ class Sqloo
 			//check if we have a "magic" added/modifed field
 			foreach( array( "added", "modified" ) as $magic_column ) {
 				if( array_key_exists( $magic_column, $table_column_array ) &&
-					! array_key_exists( $magic_column, $column_array )
+					! array_key_exists( $magic_column, $insert_array )
 				) {
 					$column_array[] = $magic_column;
 					$escaped_value_array[] = "CURRENT_TIMESTAMP";
