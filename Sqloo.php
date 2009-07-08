@@ -346,7 +346,7 @@ $table_column_array = $this->_getTable( $table_name )->column;
 	*/
 	
 	public function update( $table_name, array $update_array, $id_array_or_where_string )
-	{			
+	{
 		/* create update string */
 		$update_string = 
 			"UPDATE \"".$table_name."\"\n".
@@ -358,7 +358,7 @@ $table_column_array = $this->_getTable( $table_name )->column;
 		
 		//add other fields
 		foreach( array_keys( $update_array ) as $key )
-			$update_string .= $key."=?,";
+			$update_string .= "\"".$key."\"=?,";
 		
 		$update_string = substr( $update_string, 0, -1 )."\n";
 		if( is_array( $id_array_or_where_string ) ) {
