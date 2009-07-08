@@ -136,7 +136,7 @@ class Sqloo
 	*	@return	resource	Resource from PDO::query().
 	*/
 	
-	public function query( $query_string, $parameters_array = NULL, $on_slave = FALSE )
+	public function query( $query_string, array $parameters_array = NULL, $on_slave = FALSE )
 	{
 		$query_string .= ";";
 		$statement_object = $this->prepare( $query_string, $on_slave );
@@ -178,7 +178,7 @@ class Sqloo
 	*	@param	array		Array of parameters, these will be escaped
 	*/
 	
-	public function execute( $statement_object, $parameters_array = NULL )
+	public function execute( $statement_object, array $parameters_array = NULL )
 	{	
 		if( ! $statement_object->execute( $parameters_array ) ) {
 			$error_info = $statement_object->errorInfo();
@@ -272,45 +272,41 @@ class Sqloo
 	*	@return	int		The id of the inserted row
 	*/
 	
-	public function insert( $table_name, $insert_array )
+	public function insert( $table_name, array $insert_array )
 	{		
-		if( is_array( $insert_array ) ) {
-			$insert_string = "INSERT INTO \"".$table_name."\"\n";
-			$table_column_array = $this->_getTable( $table_name )->column;
-			$column_array = array_keys( $insert_array );
-			$value_array = array();
-			$escaped_value_array = array();
-			
-			//build query string
-			foreach( array_values( $insert_array ) as $value ) {
-				if( is_array( $value ) ) { //string inside an array is "safe"
-					$escaped_value_array = $value[0];
-				} else { //else it's dirty
-					$escaped_value_array[] = "?";
-					$value_array[] = $value;
-				}
+		$insert_string = "INSERT INTO \"".$table_name."\"\n";
+		$table_column_array = $this->_getTable( $table_name )->column;
+		$column_array = array_keys( $insert_array );
+		$value_array = array();
+		$escaped_value_array = array();
+		
+		//build query string
+		foreach( array_values( $insert_array ) as $value ) {
+			if( is_array( $value ) ) { //string inside an array is "safe"
+				$escaped_value_array = $value[0];
+			} else { //else it's dirty
+				$escaped_value_array[] = "?";
+				$value_array[] = $value;
 			}
-			
-			//check if we have a "magic" added/modifed field
-			foreach( array( "added", "modified" ) as $magic_column ) {
-				if( array_key_exists( $magic_column, $table_column_array ) &&
-					! array_key_exists( $magic_column, $insert_array )
-				) {
-					$column_array[] = $magic_column;
-					$escaped_value_array[] = "CURRENT_TIMESTAMP";
-				}
-			}
-			
-			$insert_string .= "(\"".implode( "\",\"", $column_array )."\") VALUES(".implode( ",", $escaped_value_array ).")";
-			$this->query( $insert_string, $value_array );
-		} else {
-			throw new Sqloo_Exception( "bad input type: ".get_type( $insert_array ), Sqloo_Exception::BAD_INPUT );
 		}
+		
+		//check if we have a "magic" added/modifed field
+		foreach( array( "added", "modified" ) as $magic_column ) {
+			if( array_key_exists( $magic_column, $table_column_array ) &&
+				! array_key_exists( $magic_column, $insert_array )
+			) {
+				$column_array[] = $magic_column;
+				$escaped_value_array[] = "CURRENT_TIMESTAMP";
+			}
+		}
+		
+		$insert_string .= "(\"".implode( "\",\"", $column_array )."\") VALUES(".implode( ",", $escaped_value_array ).")";
+		$this->query( $insert_string, $value_array );
 			
 		return $this->_getDatabaseResource( self::QUERY_MASTER )->lastInsertId( $table_name."_id_seq" );
 	}
 	
-	public function insertQuery( $table_name, $query, $unescaped_array = NULL )
+	public function insertQuery( $table_name, $query, array $unescaped_array = NULL )
 	{
 		if( is_object( $query ) && ( $query instanceof Sqloo_Query ) ) {
 			$insert_string = "INSERT INTO \"".$table_name."\"\n";
@@ -327,10 +323,10 @@ $table_column_array = $this->_getTable( $table_name )->column;
 				" (".implode( ",", array_keys( $query->column ) ).")\n".
 				(string)$query; //transform object to string (function __toString)
 			
-			if( $unescaped_array !== NULL ) {
-				$this->query( $insert_string, $unescaped_array );
-			} else {
+			if( is_null( $unescaped_array ) ) {
 				$this->query( $insert_string );
+			} else {
+				$this->query( $insert_string, $unescaped_array );
 			}
 		} else {
 			throw new Sqloo_Exception( "bad input type: ".get_type( $query ), Sqloo_Exception::BAD_INPUT );
@@ -349,7 +345,7 @@ $table_column_array = $this->_getTable( $table_name )->column;
 	*	@param	mixed	Array of positive int values that are the id's for the rows you want to update or where string
 	*/
 	
-	public function update( $table_name, $update_array, $id_array_or_where_string )
+	public function update( $table_name, array $update_array, $id_array_or_where_string )
 	{			
 		/* create update string */
 		$update_string = 
@@ -385,23 +381,17 @@ $table_column_array = $this->_getTable( $table_name )->column;
 	*	@param	array	Array of positive int values that are the id's for the rows you want to delete
 	*/
 	
-	public function delete( $table_name, $id_array )
+	public function delete( $table_name, array $id_array )
 	{
-
-		$delete_string = "DELETE FROM \"".$table_name."\"\n";
-		if( is_array( $id_array ) ) {
-			$id_array_count = count( $id_array );
-			if ( ! $id_array_count ) throw new Sqloo_Exception( "id_array of 0 size", Sqloo_Exception::BAD_INPUT );
-			$delete_string .= "WHERE id IN (".implode( ",", array_fill( 0, $id_array_count , "?" ) ).")";
-			$this->query( $delete_string, array_values( $id_array ) );
-		} else {
-			throw new Sqloo_Exception( "bad input type", Sqloo_Exception::BAD_INPUT );
-		}
+		if ( ! $id_array ) throw new Sqloo_Exception( "id_array of 0 size", Sqloo_Exception::BAD_INPUT );
+		$delete_string =
+			"DELETE FROM \"".$table_name."\"\n".
+			"WHERE id IN (".implode( ",", array_fill( 0, count( $id_array ) , "?" ) ).")";
+		$this->query( $delete_string, array_values( $id_array ) );
 	}
 	
-	public function deleteWhere( $table_name, $where_string, $parameters_array = NULL )
+	public function deleteWhere( $table_name, $where_string, array $parameters_array = NULL )
 	{
-
 		if( is_string( $where_string ) ) {
 			$delete_string = 
 				"DELETE FROM \"".$table_name."\"\n".
@@ -421,7 +411,7 @@ $table_column_array = $this->_getTable( $table_name )->column;
 	*	@return	Sqloo_Query	Sqloo_Query object preloaded with a union of the Sqloo_Query objects in $array_of_queries
 	*/
 	
-	public function union( $array_of_queries )
+	public function union( array $array_of_queries )
 	{
 		$query_union = new Sqloo_Query( $this, $array_of_queries );
 		$first_query = array_shift( $array_of_queries );
@@ -493,7 +483,7 @@ $table_column_array = $this->_getTable( $table_name )->column;
 	*	@return string	type string
 	*/
 	
-	public function getTypeString( $attributes_array )
+	public function getTypeString( array $attributes_array )
 	{
 		$database_configuration = $this->_getDatabaseConfiguration( self::QUERY_MASTER );
 		switch( $database_configuration["type"] ) {
@@ -651,8 +641,10 @@ $table_column_array = $this->_getTable( $table_name )->column;
 			return $variable;
 		} else if( is_null( $variable ) ) {
 			return "NULL";
-		} else {
+		} else if( is_string( $variable ) ) {
 			return $this->_getDatabaseResource( self::QUERY_MASTER )->quote( $variable );
+		} else {
+			throw new Sqloo_Exception( "Bad variable type", Sqloo_Exception::BAD_INPUT );
 		}
 	}
 	

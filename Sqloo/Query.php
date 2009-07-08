@@ -182,9 +182,10 @@ class Sqloo_Query implements Iterator
 		return $this->_statement_object->rowCount();			
 	}
 	
-	public function inArray( $array, &$unescaped_array = NULL )
+	public function inArray( array $array, array &$unescaped_array = NULL )
 	{
-		if( is_array( $unescaped_array ) ) {
+		if( ! $array ) throw new Sqloo_Exception( "Empty Array passed", Sqloo_Exception::BAD_INPUT );
+		if( !is_null( $unescaped_array ) ) {
 			static $in_array_index = 0; //keeps the unescaped array keys from conflicting
 			$i = 0;
 			$in_array_keys = array();
@@ -202,7 +203,6 @@ class Sqloo_Query implements Iterator
 			}
 			return "IN (".implode( ",", $array ).")";
 		}
-		
 	}
 	
 	/**
