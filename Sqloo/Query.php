@@ -42,6 +42,7 @@ class Sqloo_Query implements Iterator
 		"having" => array(),
 		"limit" => NULL,
 		"page" => NULL,
+		"offset" => NULL,
 		"distinct" => FALSE,
 		"buffered" => TRUE
 	);
@@ -185,7 +186,7 @@ class Sqloo_Query implements Iterator
 	public function inArray( array $array, array &$unescaped_array = NULL )
 	{
 		if( ! $array ) throw new Sqloo_Exception( "Empty Array passed", Sqloo_Exception::BAD_INPUT );
-		if( !is_null( $unescaped_array ) ) {
+		if( ! is_null( $unescaped_array ) ) {
 			static $in_array_index = 0; //keeps the unescaped array keys from conflicting
 			$i = 0;
 			$in_array_keys = array();
@@ -246,7 +247,7 @@ class Sqloo_Query implements Iterator
 	private function _getSelectString()
 	{
 		$select_string = $this->_query_data["distinct"] ? "SELECT DISTINCT\n" : "SELECT\n";
-		if( count( $this->_query_data["column"] ) > 0 )
+		if( $this->_query_data["column"])
 			foreach( $this->_query_data["column"] as $output_name => $reference )
 				$select_string .= ( is_null( $reference ) ? "NULL" : $reference )." AS \"".$output_name."\",\n";
 		else
@@ -315,23 +316,23 @@ class Sqloo_Query implements Iterator
 	
 	private function _getWhereString()
 	{
-		return ( count( $this->_query_data["where"] ) > 0 ) ? "WHERE ( ".implode( " ) AND\n( ", $this->_query_data["where"] )." )\n" : "";
+		return $this->_query_data["where"] ? "WHERE ( ".implode( " ) AND\n( ", $this->_query_data["where"] )." )\n" : "";
 	}
 	
 	private function _getGroupString()
 	{
-		return ( count( $this->_query_data["group"] ) > 0 ) ? "GROUP BY ".implode( ", ", $this->_query_data["group"] )."\n" : "";
+		return $this->_query_data["group"] ? "GROUP BY ".implode( ", ", $this->_query_data["group"] )."\n" : "";
 	}
 	
 	private function _getHavingString()
 	{
-		return ( count( $this->_query_data["having"] ) > 0 ) ? "HAVING ( ".implode( " ) AND\n( ", $this->_query_data["having"] )." )\n" : "";
+		return $this->_query_data["having"]? "HAVING ( ".implode( " ) AND\n( ", $this->_query_data["having"] )." )\n" : "";
 	}
 	
 	private function _getOrderString()
 	{
 		$order_string = "";
-		if( count( $this->_query_data["order"] ) > 0 ) {
+		if( $this->_query_data["order"] ) {
 			$order_string .= "ORDER BY ";
 			foreach( $this->_query_data["order"] as $reference => $order_type )
 				$order_string .= $reference." ".$order_type.", ";
@@ -343,11 +344,11 @@ class Sqloo_Query implements Iterator
 	private function _getLimitString()
 	{
 		$limit_string = "";
-		if( $this->_query_data["limit"] !== NULL ) {
-			$limit_string .= "LIMIT ".$this->_query_data["limit"];	
-			if ( $this->_query_data["page"] !== NULL )
-				$limit_string .= " OFFSET ".( $this->_query_data["limit"]*$this->_query_data["page"] );
-			$limit_string .= "\n";
+		if( ! is_null( $this->_query_data["limit"] ) ) {
+			$offset = 0;
+			if ( ! is_null( $this->_query_data["page"] ) ) $offset += $this->_query_data["limit"] * $this->_query_data["page"];
+			if( ! is_null( $this->_query_data["offset"] ) ) $offset += $this->_query_data["offset"];
+			$limit_string .= "LIMIT ".$this->_query_data["limit"]." OFFSET ".$offset."\n";
 		}
 		return $limit_string;		
 	}
@@ -358,27 +359,32 @@ class Sqloo_Query implements Iterator
 	private $_current_row = NULL;
 	
 	
-	function rewind() {
-        $this->position = 0;
-        $this->_current_row = $this->fetchRow();
-    }
+	function rewind()
+	{
+		$this->position = 0;
+		$this->_current_row = $this->fetchRow();
+	}
 
-    function current() {
-        return $this->_current_row;
-    }
+	function current()
+	{
+		return $this->_current_row;
+	}
 
-    function key() {
-        return $this->position;
-    }
+	function key()
+	{
+		return $this->position;
+	}
 
-    function next() {
-        ++$this->position;
-        $this->_current_row = $this->fetchRow();
-    }
+	function next()
+	{
+		++$this->position;
+		$this->_current_row = $this->fetchRow();
+	}
 
-    function valid() {
-        return $this->_current_row !== FALSE;
-    }
+	function valid()
+	{
+		return (bool)$this->_current_row;
+	}
 	
 	private function __clone() {}
 		

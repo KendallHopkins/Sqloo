@@ -54,7 +54,7 @@ class Sqloo_Table
 		);
 	}
 	
-	public function index( $column_array, $unique = FALSE )
+	public function index( array $column_array, $unique = FALSE )
 	{
 		$this->index[] = array(
 			Sqloo::INDEX_COLUMN_ARRAY => $column_array,

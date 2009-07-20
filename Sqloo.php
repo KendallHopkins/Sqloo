@@ -184,7 +184,7 @@ class Sqloo
 			$error_info = $statement_object->errorInfo();
 			$driver_message = array_key_exists( 2, $error_info ) ? $error_info[2]."<br>\n" : "";
 			$error_string = $driver_message.$statement_object->queryString;
-			if( $parameters_array !== NULL ) {
+			if( ! is_null( $parameters_array ) ) {
 				$parameters_string = "";
 				foreach( $parameters_array as $key => $value ) {
 					$parameters_string .= "$key => $value, ";

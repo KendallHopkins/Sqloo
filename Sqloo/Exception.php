@@ -2,6 +2,7 @@
 
 class Sqloo_Exception extends Exception
 {
+	
 	const BAD_INPUT = 1;
 	const CONNECTION_FAILED = 2;
 
@@ -33,10 +34,6 @@ class Sqloo_Exception extends Exception
 	const QUERY_SYNTAX_ERROR_VIOLATION = 0x42;
 	const QUERY_WITH_CHECK_OPTION_VIOLATION = 0x44;
 	
-	static function getQueryErrorType()
-	{
-		return array( QUERY_NO_DATA );
-	}
 }
 
 ?>
