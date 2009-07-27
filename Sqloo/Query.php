@@ -346,7 +346,7 @@ class Sqloo_Query implements Iterator
 		$limit_string = "";
 		if( ! is_null( $this->_query_data["limit"] ) ) {
 			$offset = 0;
-			if ( ! is_null( $this->_query_data["page"] ) ) $offset += $this->_query_data["limit"] * $this->_query_data["page"];
+			if( ! is_null( $this->_query_data["page"] ) ) $offset += $this->_query_data["limit"] * $this->_query_data["page"];
 			if( ! is_null( $this->_query_data["offset"] ) ) $offset += $this->_query_data["offset"];
 			$limit_string .= "LIMIT ".$this->_query_data["limit"]." OFFSET ".$offset."\n";
 		}
