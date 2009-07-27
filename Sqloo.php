@@ -413,6 +413,7 @@ $table_column_array = $this->_getTable( $table_name )->column;
 	
 	public function union( array $array_of_queries )
 	{
+		if( ! $array_of_queries ) throw new Sqloo_Exception( "No queries in array", Sqloo_Exception::BAD_INPUT );
 		$query_union = new Sqloo_Query( $this, $array_of_queries );
 		$first_query = array_shift( $array_of_queries );
 		foreach( $first_query->column as $column_name => $column_value ) {
