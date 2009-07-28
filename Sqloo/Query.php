@@ -44,9 +44,10 @@ class Sqloo_Query implements Iterator
 		"page" => NULL,
 		"offset" => NULL,
 		"distinct" => FALSE,
-		"buffered" => TRUE
 	);
 	private $_statement_object = NULL;
+	public $parameter_array = array();
+ 
 	
 	/**
 	*	Construct function
@@ -121,7 +122,9 @@ class Sqloo_Query implements Iterator
 		if( ! array_key_exists( $key, $this->_query_data ) )
 			throw new Sqloo_Exception( "Bad key: $key", Sqloo_Exception::BAD_INPUT );
 		
-		$this->_releaseStatementObject();
+		if( ! in_array( $key, array( "parameter_array" ) ) ) {
+			$this->_releaseStatementObject();		
+		}
 		return $this->_query_data[$key];
 	}
 	
@@ -139,7 +142,6 @@ class Sqloo_Query implements Iterator
 		if( ! array_key_exists( $key, $this->_query_data ) )
 			throw new Sqloo_Exception( "Bad key: $key", Sqloo_Exception::BAD_INPUT );
 		
-		$this->_releaseStatementObject();
 		$this->_query_data[$key] = $value;
 	}
 	
@@ -149,12 +151,17 @@ class Sqloo_Query implements Iterator
 	*	@param	array	key-value array of escaped values
 	*/
 	
-	public function run( $parameters_array = NULL )
+	public function run( $parameter_array = NULL )
 	{
 		if( ! $this->_statement_object )
 			$this->_statement_object = $this->_sqloo->prepare( $this->getQueryString(), TRUE );
 		
-		$this->_sqloo->execute( $this->_statement_object, $parameters_array );
+		$parameter_array = is_array( $parameter_array ) ? array_merge( $parameter_array, $this->parameter_array ) : $this->parameter_array;
+		if( ! is_null( $this->_union_array ) )
+			foreach( $this->_union_array as $union_query )
+				$parameter_array = array_merge( $parameter_array, $union_query->parameter_array );
+		
+		$this->_sqloo->execute( $this->_statement_object, $parameter_array );
 	}
 	
 	/**
@@ -183,27 +190,19 @@ class Sqloo_Query implements Iterator
 		return $this->_statement_object->rowCount();			
 	}
 	
-	public function inArray( array $array, array &$unescaped_array = NULL )
+	public function inArray( array $array )
 	{
 		if( ! $array ) throw new Sqloo_Exception( "Empty Array passed", Sqloo_Exception::BAD_INPUT );
-		if( ! is_null( $unescaped_array ) ) {
-			static $in_array_index = 0; //keeps the unescaped array keys from conflicting
-			$i = 0;
-			$in_array_keys = array();
-			$key_prefix = "_in_".$in_array_index."_";
-			foreach( $array as $in_array_item ) {
-				$key = $key_prefix.++$i;
-				$unescaped_array[$key] = $in_array_item;
-				$in_array_keys[] = ":".$key;
-			}
-			++$in_array_index;
-			return "IN (".implode( ",", $in_array_keys ).")";
-		} else {
-			foreach( $array as &$value ) {
-				$value = $this->_sqloo->quote( $value );
-			}
-			return "IN (".implode( ",", $array ).")";
+		static $in_array_index = 0; //keeps the unescaped array keys from conflicting
+		$i = 0;
+		$in_array_keys = array();
+		$key_prefix = "_in_".$in_array_index++."_";
+		foreach( $array as $in_array_item ) {
+			$key = $key_prefix.$i++;
+			$this->parameter_array[$key] = $in_array_item;
+			$in_array_keys[] = ":".$key;
 		}
+		return "IN (".implode( ",", $in_array_keys ).")";
 	}
 	
 	/**
