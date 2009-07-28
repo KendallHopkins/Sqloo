@@ -205,6 +205,14 @@ class Sqloo_Query implements Iterator
 		return "IN (".implode( ",", $in_array_keys ).")";
 	}
 	
+	public function parameter( $parameter )
+	{
+		static $parameter_index = 0;
+		$key = "_param_".$parameter_index++;
+		$this->parameter_array[$key] = $variable;
+		return ":".$key;
+	}
+	
 	/**
 	*	Fetches a row
 	*
@@ -325,7 +333,7 @@ class Sqloo_Query implements Iterator
 	
 	private function _getHavingString()
 	{
-		return $this->_query_data["having"]? "HAVING ( ".implode( " ) AND\n( ", $this->_query_data["having"] )." )\n" : "";
+		return $this->_query_data["having"] ? "HAVING ( ".implode( " ) AND\n( ", $this->_query_data["having"] )." )\n" : "";
 	}
 	
 	private function _getOrderString()
