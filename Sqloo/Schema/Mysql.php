@@ -162,7 +162,9 @@ class Sqloo_Schema_Mysql extends Sqloo_Schema
 	
 	protected function _removeTable( $table_name )
 	{
+		$this->_sqloo->query( "SET FOREIGN_KEY_CHECKS=0" );
 		$this->_sqloo->query( "DROP TABLE \"".$table_name."\"" );
+		$this->_sqloo->query( "SET FOREIGN_KEY_CHECKS=1" );
 	}
 	
 	protected function _addColumn( $table_name, $column_name, $column_attributes )
