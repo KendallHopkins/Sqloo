@@ -306,31 +306,25 @@ class Sqloo
 		return $this->_getDatabaseResource( self::QUERY_MASTER )->lastInsertId( $table_name."_id_seq" );
 	}
 	
-	public function insertQuery( $table_name, $query, array $unescaped_array = NULL )
+	public function insertQuery( $table_name, Sqloo_Query $query, array $parameter_array = NULL )
 	{
-		if( is_object( $query ) && ( $query instanceof Sqloo_Query ) ) {
-			$insert_string = "INSERT INTO \"".$table_name."\"\n";
-			/*
+		$insert_string = "INSERT INTO \"".$table_name."\"\n";
+		/*
 $table_column_array = $this->_getTable( $table_name )->column;
-			//check if we have a "magic" added/modifed field
-			foreach( array( "added", "modified" ) as $magic_column ) {
-				if( array_key_exists( $magic_column, $table_column_array ) && ( ! array_key_exists( $magic_column, $query->column ) ) ) 
-					$query->column[$magic_column] = "CURRENT_TIMESTAMP";
-			}
+		//check if we have a "magic" added/modifed field
+		foreach( array( "added", "modified" ) as $magic_column ) {
+			if( array_key_exists( $magic_column, $table_column_array ) && ( ! array_key_exists( $magic_column, $query->column ) ) ) 
+				$query->column[$magic_column] = "CURRENT_TIMESTAMP";
+		}
 */
 
-			$insert_string .= 
-				" (".implode( ",", array_keys( $query->column ) ).")\n".
-				(string)$query; //transform object to string (function __toString)
-			
-			if( is_null( $unescaped_array ) ) {
-				$this->query( $insert_string );
-			} else {
-				$this->query( $insert_string, $unescaped_array );
-			}
-		} else {
-			throw new Sqloo_Exception( "bad input type: ".get_type( $query ), Sqloo_Exception::BAD_INPUT );
-		}
+		$insert_string .= 
+			" (".implode( ",", array_keys( $query->column ) ).")\n".
+			(string)$query; //transform object to string (function __toString)
+				
+		$parameter_array = is_array( $parameter_array ) ? array_merge( $parameter_array, $this->parameter_array ) : $this->parameter_array;
+
+		$this->query( $insert_string, $parameter_array );
 		
 		return $this->_getDatabaseResource( self::QUERY_MASTER )->lastInsertId( $table_name."_id_seq" );
 	}
