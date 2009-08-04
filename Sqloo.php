@@ -321,8 +321,8 @@ $table_column_array = $this->_getTable( $table_name )->column;
 		$insert_string .= 
 			" (".implode( ",", array_keys( $query->column ) ).")\n".
 			(string)$query; //transform object to string (function __toString)
-				
-		$parameter_array = is_array( $parameter_array ) ? array_merge( $parameter_array, $this->parameter_array ) : $this->parameter_array;
+		
+		$parameter_array = is_array( $parameter_array ) ? array_merge( $parameter_array, $query->parameter_array ) : $query->parameter_array;
 
 		$this->query( $insert_string, $parameter_array );
 		
