@@ -164,6 +164,12 @@ class Sqloo_Query implements Iterator
 		$this->_sqloo->execute( $this->_statement_object, $parameter_array );
 	}
 	
+	public function explain( $parameter_array = NULL )
+	{
+		$parameter_array = is_array( $parameter_array ) ? array_merge( $parameter_array, $this->parameter_array ) : $this->parameter_array;
+		return $this->_sqloo->query( "EXPLAIN ".$this->getQueryString(), $parameter_array )->fetchAll( PDO::FETCH_ASSOC );
+	}
+	
 	/**
 	*	The query string
 	*

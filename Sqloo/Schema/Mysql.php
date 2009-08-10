@@ -34,7 +34,7 @@ class Sqloo_Schema_Mysql extends Sqloo_Schema
 	protected function _executeAlterQuery()
 	{
 		$log_string = "";
-		if( count( $this->_alter_table_data ) > 0 ) {
+		if( $this->_alter_table_data ) {
 			$this->_sqloo->query( "SET FOREIGN_KEY_CHECKS=0" );
 			foreach( $this->_alter_table_data as $table_name => $table_query_info_array ) {
 				$query_string = "";

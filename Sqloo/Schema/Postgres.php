@@ -62,7 +62,7 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 						throw new Sqloo_Exception( "Unknown action on column: ".$table_array["action"], Sqloo_Exception::BAD_INPUT );	
 					}
 				}
-				if( count( $drop_index_array ) > 0 ) {
+				if( $drop_index_array ) {
 					$query_array[] = "DROP INDEX \"".implode( "\",\"", $drop_index_array )."\" CASCADE";
 				}
 			}
