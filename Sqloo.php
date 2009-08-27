@@ -323,7 +323,7 @@ class Sqloo
 		
 		$parameter_array = array_merge(
 			is_array( $parameter_array ) ? $parameter_array : array(),
-			$this->getParameterArray()
+			$query->getParameterArray()
 		);
 
 		$this->query( $insert_string, $parameter_array );
