@@ -309,14 +309,13 @@ class Sqloo
 	public function insertQuery( $table_name, Sqloo_Query $query, array $parameter_array = NULL )
 	{
 		$insert_string = "INSERT INTO \"".$table_name."\"\n";
-		/*
-$table_column_array = $this->_getTable( $table_name )->column;
+		$table_column_array = $this->_getTable( $table_name )->column;
+		
 		//check if we have a "magic" added/modifed field
 		foreach( array( "added", "modified" ) as $magic_column ) {
 			if( array_key_exists( $magic_column, $table_column_array ) && ( ! array_key_exists( $magic_column, $query->column ) ) ) 
 				$query->column[$magic_column] = "CURRENT_TIMESTAMP";
 		}
-*/
 
 		$insert_string .= 
 			" (".implode( ",", array_keys( $query->column ) ).")\n".
