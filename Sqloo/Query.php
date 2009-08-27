@@ -225,7 +225,7 @@ class Sqloo_Query implements Iterator
 	
 	public function getParameterArray()
 	{
-		$parameter_array = $union_query->parameter_array;
+		$parameter_array = $this->parameter_array;
 		if( ! is_null( $this->_union_array ) )
 			foreach( $this->_union_array as $union_query )
 				$parameter_array = array_merge( $parameter_array, $union_query->parameter_array );
