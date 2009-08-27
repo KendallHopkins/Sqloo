@@ -156,17 +156,21 @@ class Sqloo_Query implements Iterator
 		if( ! $this->_statement_object )
 			$this->_statement_object = $this->_sqloo->prepare( $this->getQueryString(), TRUE );
 		
-		$parameter_array = is_array( $parameter_array ) ? array_merge( $parameter_array, $this->parameter_array ) : $this->parameter_array;
-		if( ! is_null( $this->_union_array ) )
-			foreach( $this->_union_array as $union_query )
-				$parameter_array = array_merge( $parameter_array, $union_query->parameter_array );
-		
+		$parameter_array = array_merge(
+			is_array( $parameter_array ) ? $parameter_array : array(),
+			$this->getParameterArray()
+		);
+				
 		$this->_sqloo->execute( $this->_statement_object, $parameter_array );
 	}
 	
 	public function explain( $parameter_array = NULL )
 	{
-		$parameter_array = is_array( $parameter_array ) ? array_merge( $parameter_array, $this->parameter_array ) : $this->parameter_array;
+		$parameter_array = array_merge(
+			is_array( $parameter_array ) ? $parameter_array : array(),
+			$this->getParameterArray()
+		);
+		
 		return $this->_sqloo->query( "EXPLAIN ".$this->getQueryString(), $parameter_array )->fetchAll( PDO::FETCH_ASSOC );
 	}
 	
@@ -215,8 +219,18 @@ class Sqloo_Query implements Iterator
 	{
 		static $parameter_index = 0;
 		$key = "_param_".$parameter_index++;
-		$this->parameter_array[$key] = $variable;
+		$this->parameter_array[$key] = $parameter;
 		return ":".$key;
+	}
+	
+	public function getParameterArray()
+	{
+		$parameter_array = $union_query->parameter_array;
+		if( ! is_null( $this->_union_array ) )
+			foreach( $this->_union_array as $union_query )
+				$parameter_array = array_merge( $parameter_array, $union_query->parameter_array );
+		
+		return $parameter_array;
 	}
 	
 	/**
