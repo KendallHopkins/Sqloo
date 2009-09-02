@@ -361,12 +361,14 @@ class Sqloo
 		
 		$update_string = substr( $update_string, 0, -1 )."\n";
 		if( is_array( $id_array_or_where_string ) ) {
-			$id_array_count = count( $id_array_or_where_string );
+			$id_array = $id_array_or_where_string;
+			$id_array_count = count( $id_array );
 			if( ! $id_array_count ) throw new Sqloo_Exception( "id_array of 0 size", Sqloo_Exception::BAD_INPUT );
-			$update_string .= "WHERE id IN (".implode( ",", array_fill( 0, count( $id_array_or_where_string ), "?" ) ).")\n";
-			$this->query( $update_string, array_merge( array_values( $update_array ), array_values( $id_array_or_where_string ) ) );
+			$update_string .= "WHERE id IN (".implode( ",", array_fill( 0, count( $id_array ), "?" ) ).")\n";
+			$this->query( $update_string, array_merge( array_values( $update_array ), array_values( $id_array ) ) );
 		} else if( is_string( $id_array_or_where_string ) ) {
-			$update_string .= "WHERE ".$id_array_or_where_string;
+			$where_string = $id_array_or_where_string;
+			$update_string .= "WHERE ".$where_string;
 			$this->query( $update_string, array_values( $update_array ) );
 		} else {
 			throw new Sqloo_Exception( "bad input type", Sqloo_Exception::BAD_INPUT );
