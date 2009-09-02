@@ -153,7 +153,8 @@ class Sqloo_Query implements Iterator
 	
 	public function run( $parameter_array = NULL )
 	{
-		if( ! $this->_statement_object )
+		//For some reason if we don't bind any parameters, it doesn't prepare the query, even though it says it should. So the object can't be reused :(
+		if( ( ! $this->_statement_object ) || ( ! $parameter_array ) ) 
 			$this->_statement_object = $this->_sqloo->prepare( $this->getQueryString(), TRUE );
 		
 		$parameter_array = array_merge(

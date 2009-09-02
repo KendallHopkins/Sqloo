@@ -180,17 +180,13 @@ class Sqloo
 	
 	public function execute( $statement_object, array $parameters_array = NULL )
 	{	
+		$parameters_array = NULL;
 		if( ! $statement_object->execute( $parameters_array ) ) {
 			$error_info = $statement_object->errorInfo();
 			$driver_message = array_key_exists( 2, $error_info ) ? $error_info[2]."<br>\n" : "";
-			$error_string = $driver_message.$statement_object->queryString;
-			if( ! is_null( $parameters_array ) ) {
-				$parameters_string = "";
-				foreach( $parameters_array as $key => $value ) {
-					$parameters_string .= "$key => $value, ";
-				}
-				$error_string .= "\narray(".substr( $parameters_string, 0, -2 )." )";
-			}
+			$error_string =
+				$driver_message.$statement_object->queryString."\n".
+				"\$parameters_array = ".Common::phpCodeFromVariable( $parameters_array );
 			throw new Sqloo_Exception( $error_string, hexdec( substr( $error_info[0], 0, 2 ) ) );
 		}
 	}
