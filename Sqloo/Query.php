@@ -329,7 +329,10 @@ class Sqloo_Query implements Iterator
 				}
 			}
 		} else {
-			$from_string .= "( ( ".implode( " )\nUNION\n( ", $this->_union_array )." ) ) union_name\n";
+			$from_string .=
+				"( ( ".implode( " )\n".
+				"UNION ".( $this->_query_data["distinct"] ? "DISTINCT" : "ALL" )." \n".
+				"( ", $this->_union_array )." ) ) union_name\n";
 		}
 		return $from_string;
 	}
