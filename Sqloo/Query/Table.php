@@ -55,6 +55,8 @@ class Sqloo_Query_Table
 	
 	public function __get( $key ) { return "\"".$this->_reference."\".".$key; }
 	
+	public function __toString() { return "\"".$this->_reference."\""; }
+	
 	public function getNMTable()
 	{
 		if( $this->_nm_query_table_class === NULL )

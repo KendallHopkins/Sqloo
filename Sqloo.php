@@ -32,6 +32,11 @@ require( "Sqloo/Datatypes.php" );
 class Sqloo
 {
 	
+	//Database Type
+	const DB_MYSQL = "mysql";
+	const DB_PGSQL = "pgsql";
+	
+	
 	//Column Attributes
 	const COLUMN_DATA_TYPE = "column_data_type"; //string
 	const COLUMN_ALLOW_NULL = "allow_null"; //bool
@@ -75,9 +80,9 @@ class Sqloo
 	const DATATYPE_TIME = 6;
 	const DATATYPE_OVERRIDE = 7;
 	
-	const SELECT_LOCK_READ = "";
-	const SELECT_LOCK_SHARE = "FOR SHARE";
-	const SELECT_LOCK_UPDATE = "FOR UPDATE";
+	const SELECT_LOCK_NONE = 0;
+	const SELECT_LOCK_SHARE = 1;
+	const SELECT_LOCK_UPDATE = 2;
 	
 	//Query Types (private)
 	/** @access private */
@@ -491,13 +496,12 @@ class Sqloo
 	
 	public function getTypeString( array $attributes_array )
 	{
-		$database_configuration = $this->_getDatabaseConfiguration( self::QUERY_MASTER );
-		switch( $database_configuration["type"] ) {
-		case "mysql": 
+		switch( $this->getDBType() ) {
+		case self::DB_MYSQL: 
 			require_once( "Sqloo/Datatypes/Mysql.php" );
 			return Sqloo_Datatypes_Mysql::getTypeString( $attributes_array );
 			break;
-		case "pgsql": 
+		case self::DB_PGSQL: 
 			require_once( "Sqloo/Datatypes/Postgres.php" );
 			return Sqloo_Datatypes_Postgres::getTypeString( $attributes_array );
 			break;
@@ -514,19 +518,28 @@ class Sqloo
 	
 	public function getFunction( $function, $content )
 	{
-		$database_configuration = $this->_getDatabaseConfiguration( self::QUERY_MASTER );
-		require_once( "Sqloo/Datatypes.php" );
-		switch( $database_configuration["type"] ) {
-		case "mysql": 
+		switch( $this->getDBType() ) {
+		case self::DB_MYSQL: 
 			require_once( "Sqloo/Datatypes/Mysql.php" );
 			return Sqloo_Datatypes_Mysql::getFunction( $function, $content );
 			break;
-		case "pgsql": 
+		case self::DB_PGSQL: 
 			require_once( "Sqloo/Datatypes/Postgres.php" );
 			return Sqloo_Datatypes_Postgres::getFunction( $function, $content );
 			break;
 		default: throw new Sqloo_Exception( "Unknown database: ".$database_configuration["type"], Sqloo_Exception::BAD_INPUT );
 		}
+	}
+	
+	/**
+	*	Get's the database type
+	*
+	*	@return string	type string
+	*/
+	public function getDBType()
+	{
+		$database_configuration = $this->_getDatabaseConfiguration( self::QUERY_MASTER );
+		return $database_configuration["type"];
 	}
 	
 	/**
@@ -537,10 +550,9 @@ class Sqloo
 	
 	public function checkSchema()
 	{
-		$database_configuration = $this->_getDatabaseConfiguration( self::QUERY_MASTER );
-		switch( $database_configuration["type"] ) {
-		case "mysql": $file_name = "Mysql"; break;
-		case "pgsql": $file_name = "Postgres"; break;
+		switch( $this->getDBType() ) {
+		case self::DB_MYSQL: $file_name = "Mysql"; break;
+		case self::DB_PGSQL: $file_name = "Postgres"; break;
 		default: throw new Sqloo_Exception( "Bad database type: ".$database_configuration["type"], Sqloo_Exception::BAD_INPUT ); break;
 		}
 

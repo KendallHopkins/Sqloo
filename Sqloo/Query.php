@@ -44,9 +44,9 @@ class Sqloo_Query implements Iterator
 		"page" => NULL,
 		"offset" => NULL,
 		"distinct" => FALSE,
-		"lock" => Sqloo::SELECT_LOCK_READ
-		//"lock_table_array" => NULL,
-		//"lock_wait" => TRUE
+		"allow_slave" => FALSE,
+		"lock" => Sqloo::SELECT_LOCK_NONE,
+		"lock_wait" => TRUE
 	);
 	private $_statement_object = NULL;
 	public $parameter_array = array();
@@ -391,9 +391,51 @@ class Sqloo_Query implements Iterator
 	private function _getLockString()
 	{
 		if( ! $this->_sqloo->inTransaction() )
-			throw new Sqloo_Exception( "Locking row with selects requires to be in a transaction", Sqloo::TRANSACTION_REQUIRED );
+			throw new Sqloo_Exception( "Locking row with selects requires to be in a transaction", Sqloo_Exception::TRANSACTION_REQUIRED );
 		
-		$lock_string = $this->_query_data["lock"]."\n";
+		$lock_string = "";
+		switch( $this->_sqloo->getDBType() ) {
+			case self::DB_MYSQL:
+				switch( $this->_query_data["lock"] ) {
+					case Sqloo::SELECT_LOCK_NONE:
+						break;
+					case Sqloo::SELECT_LOCK_SHARE:
+						$lock_string .= "LOCK IN SHARE MODE\n";
+						break;
+					case Sqloo::SELECT_LOCK_UPDATE:
+						$lock_string .= "FOR UPDATE\n";
+						break;
+					default:
+						throw new Sqloo_Exception( "Unknown locking type: ".$this->_query_data["lock"], Sqloo_Exception::BAD_INPUT );
+						break;
+				}
+				if( ! $this->_query_data["lock_wait"] ) throw new Exception( "Mysql doesn't support NOWAIT for locking tables on select", Sqloo_Exception::BAD_INPUT );
+				break;
+				
+			case self::DB_PGSQL:
+				switch( $this->_query_data["lock"] ) {
+					case Sqloo::SELECT_LOCK_NONE:
+						if( ! $this->_query_data["lock_wait"] )
+							throw new Exception( "NOWAIT can only be used when locking", Sqloo_Exception::BAD_INPUT );
+						break;
+					case Sqloo::SELECT_LOCK_SHARE:
+						$lock_string .= "FOR SHARE\n";
+						break;
+					case Sqloo::SELECT_LOCK_UPDATE:
+						$lock_string .= "FOR UPDATE\n";
+						break;
+					default:
+						throw new Sqloo_Exception( "Unknown locking type: ".$this->_query_data["lock"], Sqloo_Exception::BAD_INPUT );
+						break;
+				}
+				$lock_string .= "NOWAIT\n";
+				break;
+			
+			default:
+				throw new Sqloo_Exception( "Unknown db type", Sqloo_Exception::BAD_INPUT );
+				break;
+		}
+		
 		return $lock_string;
 	}
 	
