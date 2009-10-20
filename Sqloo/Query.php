@@ -44,6 +44,9 @@ class Sqloo_Query implements Iterator
 		"page" => NULL,
 		"offset" => NULL,
 		"distinct" => FALSE,
+		"lock" => Sqloo::SELECT_LOCK_READ
+		//"lock_table_array" => NULL,
+		//"lock_wait" => TRUE
 	);
 	private $_statement_object = NULL;
 	public $parameter_array = array();
@@ -190,7 +193,8 @@ class Sqloo_Query implements Iterator
 			$this->_getGroupString().
 			$this->_getHavingString().
 			$this->_getOrderString().
-			$this->_getLimitString();
+			$this->_getLimitString().
+			$this->_getLockString();
 	}
 	
 	public function count()
@@ -382,6 +386,15 @@ class Sqloo_Query implements Iterator
 			$limit_string .= "LIMIT ".$this->_query_data["limit"]." OFFSET ".$offset."\n";
 		}
 		return $limit_string;		
+	}
+	
+	private function _getLockString()
+	{
+		if( ! $this->_sqloo->inTransaction() )
+			throw new Sqloo_Exception( "Locking row with selects requires to be in a transaction", Sqloo::TRANSACTION_REQUIRED );
+		
+		$lock_string = $this->_query_data["lock"]."\n";
+		return $lock_string;
 	}
 	
 	/* ITERATOR INTERFACE */

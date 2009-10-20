@@ -75,6 +75,10 @@ class Sqloo
 	const DATATYPE_TIME = 6;
 	const DATATYPE_OVERRIDE = 7;
 	
+	const SELECT_LOCK_READ = "";
+	const SELECT_LOCK_SHARE = "FOR SHARE";
+	const SELECT_LOCK_UPDATE = "FOR UPDATE";
+	
 	//Query Types (private)
 	/** @access private */
 	const QUERY_MASTER = 1;
