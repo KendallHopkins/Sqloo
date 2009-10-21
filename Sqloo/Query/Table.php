@@ -53,7 +53,7 @@ class Sqloo_Query_Table
 		$this->_nm_query_table_class = $nm_query_table_class;
 	}
 	
-	public function __get( $key ) { return "\"".$this->_reference."\".".$key; }
+	public function __get( $key ) { return "\"".$this->_reference."\".\"".$key."\""; }
 	
 	public function __toString() { return "\"".$this->_reference."\""; }
 	
