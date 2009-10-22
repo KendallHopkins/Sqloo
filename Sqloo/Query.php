@@ -396,7 +396,7 @@ class Sqloo_Query implements Iterator
 				throw new Sqloo_Exception( "Locking row with selects requires to be in a transaction", Sqloo_Exception::TRANSACTION_REQUIRED );
 			
 			switch( $this->_sqloo->getDBType() ) {
-				case self::DB_MYSQL:
+				case Sqloo::DB_MYSQL:
 					switch( $this->_query_data["lock"] ) {
 						case Sqloo::SELECT_LOCK_SHARE:
 							$lock_string .= "LOCK IN SHARE MODE\n";
@@ -411,7 +411,7 @@ class Sqloo_Query implements Iterator
 					if( ! $this->_query_data["lock_wait"] ) throw new Exception( "Mysql doesn't support NOWAIT for locking tables on select", Sqloo_Exception::BAD_INPUT );
 					break;
 					
-				case self::DB_PGSQL:
+				case Sqloo::DB_PGSQL:
 					switch( $this->_query_data["lock"] ) {
 						case Sqloo::SELECT_LOCK_SHARE:
 							$lock_string .= "FOR SHARE\n";
