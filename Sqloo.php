@@ -124,7 +124,7 @@ class Sqloo
 	{
 		if( $this->_in_transaction ) {
 			$this->rollbackTransaction();
-			throw new Sqloo_Exception( "Transaction was not close and was rolled back", Sqloo_Exception::BAD_INPUT );
+			throw new Sqloo_Exception( "Transaction was not closed and was rolled back", Sqloo_Exception::BAD_INPUT );
 		}
 	}
 	
@@ -311,7 +311,6 @@ class Sqloo
 		
 		$insert_string .= "(\"".implode( "\",\"", $column_array )."\") VALUES(".implode( ",", $escaped_value_array ).")";
 		$this->query( $insert_string, $value_array );
-			
 		return $this->_getDatabaseResource( self::QUERY_MASTER )->lastInsertId( $table_name."_id_seq" );
 	}
 	
