@@ -4,37 +4,8 @@
 	//include our headers
 	require( "../Sqloo.php" );
 	
-	//setup our database pooling function
-	function master_pool()
-	{
-		return array(
-			"address" => "127.0.0.1",
-			"username" => "ken",
-			"password" => "password",
-			"name" => "sqloo",
-			"type" => 0 ? "pgsql" : "mysql"
-		);
-	}
-	
-	//simple load table function
-	function load_table( $table_name, $sqloo )
-	{
-		require( "db/".$table_name.".php" );
-	}
-	
-	//simple list table function
-	function list_all_tables()
-	{
-		return array( "house", "person", "house-person", "house_normalized" );
-	}
-	
-	//We init Sqloo with functions to get database configuration and load tables dynamically
-	$sqloo = new Sqloo( "master_pool", NULL, "load_table", "list_all_tables" );
-	
-/* CHECK SCHEMA */
-	//This is ONLY required to do when the schema is updated
-	//Running "checkSchema" is costly and should only be done when needed
-	//print $sqloo->checkSchema();
+/* SETUP */
+	require( "./setup.php" );
 
 /* QUERY EXAMPLES */
 
@@ -90,6 +61,9 @@ $sqloo->beginTransaction();
 	$result_array1 = $query1->fetchArray();
 	print_r( $result_array1 ); //do something with result_array1
 
+$sqloo->beginTransaction();
+$sqloo->beginTransaction();
+
 //join query example
 	//normalize the house, and person table.
 	$query2 = $sqloo->newQuery();
@@ -99,7 +73,10 @@ $sqloo->beginTransaction();
 		"house_address" => $house_table_ref->address,
 		"owner_fullname" => "$person_table_ref->fname || ' ' || $person_table_ref->lname"
 	);
-	$sqloo->insert( "house_normalized", $query2 ); //insert query directly into database
+	$sqloo->insertQuery( "house_normalized", $query2 ); //insert query directly into database
+
+$sqloo->commitTransaction();
+$sqloo->commitTransaction();
 
 $sqloo->rollbackTransaction(); //rollback outer transaction
 

@@ -154,26 +154,22 @@ class Sqloo_Query implements Iterator
 	*	@param	array	key-value array of escaped values
 	*/
 	
-	public function run( $parameter_array = NULL )
+	public function run( array $parameter_array = NULL )
 	{
 		//For some reason if we don't bind any parameters, it doesn't prepare the query, even though it says it should. So the object can't be reused :(
 		if( ( ! $this->_statement_object ) || ( ! $parameter_array ) ) 
 			$this->_statement_object = $this->_sqloo->prepare( $this->getQueryString(), TRUE );
 		
-		$parameter_array = array_merge(
-			is_array( $parameter_array ) ? $parameter_array : array(),
-			$this->getParameterArray()
-		);
+		if( ! $parameter_array ) $parameter_array = array();
+		$parameter_array += $this->getParameterArray();
 				
 		$this->_sqloo->execute( $this->_statement_object, $parameter_array );
 	}
 	
-	public function explain( $parameter_array = NULL )
+	public function explain( array $parameter_array = NULL )
 	{
-		$parameter_array = array_merge(
-			is_array( $parameter_array ) ? $parameter_array : array(),
-			$this->getParameterArray()
-		);
+		if( ! $parameter_array ) $parameter_array = array();
+		$parameter_array += $this->getParameterArray();
 		
 		return $this->_sqloo->query( "EXPLAIN ".$this->getQueryString(), $parameter_array )->fetchAll( PDO::FETCH_ASSOC );
 	}
@@ -233,7 +229,7 @@ class Sqloo_Query implements Iterator
 		$parameter_array = $this->parameter_array;
 		if( ! is_null( $this->_union_array ) )
 			foreach( $this->_union_array as $union_query )
-				$parameter_array = array_merge( $parameter_array, $union_query->parameter_array );
+				$parameter_array += $union_query->parameter_array;
 		
 		return $parameter_array;
 	}
@@ -345,7 +341,8 @@ class Sqloo_Query implements Iterator
 	{
 		$join_data_array = $query_table_class->getJoinData();
 		foreach( $join_data_array as $join_data )
-			$join_data_array = array_merge( $join_data_array, $this->_getJoinData( $join_data["class"] ) );
+			$join_data_array += $this->_getJoinData( $join_data["class"] );
+		
 		return $join_data_array;
 	}
 	

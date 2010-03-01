@@ -26,6 +26,7 @@ THE SOFTWARE.
 
 require( "Sqloo/Query.php" );
 require( "Sqloo/Table.php" );
+require( "Sqloo/CacheInterface.php" );
 require( "Sqloo/Exception.php" );
 require( "Sqloo/Datatypes.php" );
 
@@ -94,8 +95,11 @@ class Sqloo
 	private $_slave_db_function;
 	private $_load_table_function;
 	private $_list_all_tables_function;
+	private $_caching_class;
+	
 	private $_table_array = array();
-	private $_in_transaction = FALSE;
+	private $_transaction_depth = 0;
+	private $_transaction_cache_array = array();
 	
 	/**
 	*	Construct Function
@@ -106,12 +110,14 @@ class Sqloo
 	*	@returns Sqloo
 	*/
 	
-	public function __construct( $master_db_function, $slave_db_function = NULL, $load_table_function = NULL, $list_all_tables_function = NULL ) 
+	public function __construct( $master_db_function, $slave_db_function = NULL, $load_table_function = NULL, $list_all_tables_function = NULL, $caching_class = NULL ) 
 	{
 		$this->_master_db_function = $master_db_function;
 		$this->_slave_db_function = $slave_db_function;
 		$this->_load_table_function = $load_table_function;
 		$this->_list_all_tables_function = $list_all_tables_function;
+		if( ! is_null( $caching_class ) && ! ( $caching_class instanceof Sqloo_CacheInterface ) ) throw new Sqloo_Exception( "Caching class doesn't implement Sqloo_CacheInterface", Sqloo_Exception::BAD_INPUT );
+		$this->_caching_class = $caching_class;
 	}
 	
 	/**
@@ -122,8 +128,11 @@ class Sqloo
 	
 	public function __destruct()
 	{
-		if( $this->_in_transaction ) {
-			$this->rollbackTransaction();
+		
+		if( $this->_transaction_depth ) {
+			do {
+				$this->rollbackTransaction();				
+			} while( $this->_transaction_depth );
 			throw new Sqloo_Exception( "Transaction was not closed and was rolled back", Sqloo_Exception::BAD_INPUT );
 		}
 	}
@@ -163,7 +172,7 @@ class Sqloo
 	
 	public function prepare( $query_string, $on_slave = FALSE )
 	{
-		if( $this->_in_transaction || ( ! $on_slave ) )
+		if( $this->_transaction_depth || ( ! $on_slave ) )
 			$query_type = self::QUERY_MASTER;
 		else
 			$query_type = self::QUERY_SLAVE;
@@ -172,7 +181,7 @@ class Sqloo
 		try {
 			$statement_object = $database_resource->prepare( $query_string );			
 		} catch ( PDOException $exception ) {
-			throw new Sqloo_Exception( $exception->getMessage()."<br>\n".$query_string, hexdec( substr( $exception->getCode(), 0, 2 ) ) );
+			$statement_object = NULL;
 		}
 		if( ! $statement_object ) {
 			throw new Sqloo_Exception( $exception->getMessage()."<br>\n".$query_string, hexdec( substr( $exception->getCode(), 0, 2 ) ) );
@@ -212,7 +221,7 @@ class Sqloo
 	
 	public function inTransaction()
 	{
-		return $this->_in_transaction;
+		return (bool)$this->_transaction_depth;
 	}
 	
 	/**
@@ -221,13 +230,17 @@ class Sqloo
 	
 	public function beginTransaction()
 	{
-		if( ! $this->_in_transaction ) {
+		if( $this->_transaction_depth == 0 ) {
 			$pdo = $this->_getDatabaseResource( self::QUERY_MASTER );
 			$pdo->beginTransaction();
-			$this->_in_transaction = TRUE;
 		} else {
-			throw new Sqloo_Exception( "Already in transaction", Sqloo_Exception::BAD_INPUT );		
+			$savepoint_name = "s".$this->_transaction_depth;
+			$this->query( "SAVEPOINT $savepoint_name" );		
 		}
+		
+		//add another layer to the cache
+		$this->_transaction_cache_array[$this->_transaction_depth] = array();
+		$this->_transaction_depth++;
 	}
 	
 	/**
@@ -236,10 +249,18 @@ class Sqloo
 	
 	public function rollbackTransaction()
 	{
-		if( $this->_in_transaction ) {
-			$pdo = $this->_getDatabaseResource( self::QUERY_MASTER );
-			$pdo->rollBack();
-			$this->_in_transaction = FALSE;
+		if( $this->_transaction_depth ) {
+			$this->_transaction_depth--;
+			
+			if( $this->_transaction_depth == 0 ) {
+				$pdo = $this->_getDatabaseResource( self::QUERY_MASTER )->rollBack();
+			} else {
+				$savepoint_name = "s".( $this->_transaction_depth );
+				$this->query( "ROLLBACK TO SAVEPOINT $savepoint_name" );		
+			}
+			
+			//throw away outer cache layer
+			unset( $this->_transaction_cache_array[$this->_transaction_depth] );
 		} else {
 			throw new Sqloo_Exception( "not in a transaction, didn't rollback", Sqloo_Exception::BAD_INPUT );		
 		}
@@ -251,9 +272,32 @@ class Sqloo
 	
 	public function commitTransaction()
 	{
-		if( $this->_in_transaction ) {
-			$this->_getDatabaseResource( self::QUERY_MASTER )->commit();
-			$this->_in_transaction = FALSE;
+		if( $this->_transaction_depth ) {
+			$this->_transaction_depth--;
+			
+			//merge outer layer into the next layer
+			$outer_cache_layer = $this->_transaction_cache_array[$this->_transaction_depth];
+			unset( $this->_transaction_cache_array[$this->_transaction_depth] );
+			
+			if( $this->_transaction_depth > 0 ) {
+				//merge layer down
+				$this->_transaction_cache_array[$this->_transaction_depth - 1] = $outer_cache_layer + $this->_transaction_cache_array[$this->_transaction_depth - 1];
+			} else {
+				foreach( $outer_cache_layer as $key => $info ) {
+					switch( $info["type"] ) {
+						case "set": $this->_caching_class->set( $key, $info["data"] ); break;
+						case "remove": $this->_caching_class->remove( $key ); break;
+						default: throw new Exception( "bad type" ); break;
+					}
+				}
+			}
+		
+			if( $this->_transaction_depth == 0 ) {
+				$this->_getDatabaseResource( self::QUERY_MASTER )->commit();
+			} else {
+				$savepoint_name = "s".( $this->_transaction_depth );
+				$this->query( "RELEASE SAVEPOINT $savepoint_name" );		
+			}
 		} else {
 			throw new Sqloo_Exception( "not in a transaction, didn't commit", Sqloo_Exception::BAD_INPUT );		
 		}
@@ -332,10 +376,8 @@ class Sqloo
 			" (".implode( ",", array_keys( $query->column ) ).")\n".
 			(string)$query; //transform object to string (function __toString)
 		
-		$parameter_array = array_merge(
-			is_array( $parameter_array ) ? $parameter_array : array(),
-			$query->getParameterArray()
-		);
+		if( ! $parameter_array ) $parameter_array = array();
+		$parameter_array += $query->getParameterArray();
 
 		$this->query( $insert_string, $parameter_array );
 		
@@ -561,6 +603,50 @@ class Sqloo
 		$schema = new $class_name( $this );
 		return $schema->checkSchema();
 	}
+	
+	/* Transactional Caching */
+	
+	public function cacheSet( $key, $data )
+	{
+		if( $this->_transaction_depth > 0 ) {
+			$this->_transaction_cache_array[$this->_transaction_depth - 1][$key] = array( "type" => "set", "data" => $data );
+		} else {
+			$this->_caching_class->set( $key, $data );
+		}
+	}
+	
+	public function cacheGet( $key, &$data )
+	{
+		//try to find it in the cache transaction layers
+		for( $current_cache_layer = $this->_transaction_depth - 1; $current_cache_layer >= 0; $current_cache_layer-- ) {
+			if( array_key_exists( $key, $this->_transaction_cache_array[$current_cache_layer] ) ) {
+				switch( $this->_transaction_cache_array[$current_cache_layer][$key]["type"] ) {
+					case "set":
+						$data = $this->_transaction_cache_array[$current_cache_layer][$key]["data"];
+						return TRUE;
+						break;
+					case "remove":
+						return FALSE;
+						break;
+					default:
+						throw new Exception( "bad type" );
+						break;
+				}
+			}
+		}
+		
+		return $this->_caching_class->get( $key, $data );
+	}
+	
+	public function cacheRemove( $key )
+	{
+		if( $this->_transaction_depth > 0 ) {
+			$this->_transaction_cache_array[$this->_transaction_depth - 1][$key] = array( "type" => "remove" );
+		} else {
+			$this->_caching_class->remove( $key );
+		}
+	}
+	
 	
 	/* Private Functions */
 	

@@ -121,25 +121,16 @@ abstract class Sqloo_Schema
 		$target_column_data_array = array();
 		foreach( $all_tables as $table_name => $table_class ) {
 			//every table has an id column
-			$target_column_data_array[$table_name]["id"] = array_merge(
-				$this->_column_default_attributes,
-				$this->_id_column_attributes
-			);
+			$target_column_data_array[$table_name]["id"] = $this->_id_column_attributes + $this->_column_default_attributes;
 			
 			//add normal attribute columns
 			foreach( $table_class->column as $column_name => $column_attribute_array ) {
-				$target_column_data_array[$table_name][$column_name] = array_merge(
-					$this->_column_default_attributes,
-					$column_attribute_array
-				);		
+				$target_column_data_array[$table_name][$column_name] = $column_attribute_array + $this->_column_default_attributes;
 			}
 			
 			//add join (fk) columns
 			foreach( $table_class->parent as $join_column_name => $parent_attribute_array ) {
-				$target_column_data_array[$table_name][$join_column_name] = array_merge(
-					$this->_column_default_attributes,
-					$parent_attribute_array
-				);		
+				$target_column_data_array[$table_name][$join_column_name] = $parent_attribute_array + $this->_column_default_attributes;	
 			}
 		}
 		return $target_column_data_array;
@@ -150,10 +141,7 @@ abstract class Sqloo_Schema
 		$target_index_data_array = array();
 		foreach( $all_tables as $table_name => $table_class ) {
 			foreach( $table_class->index as $index_attribute_array ) {
-				$target_index_data_array[ $table_name ][] = array_merge(
-					$this->_index_default_attributes,
-					$index_attribute_array
-				);		
+				$target_index_data_array[ $table_name ][] = $index_attribute_array + $this->_index_default_attributes;	
 			}
 			foreach( $table_class->parent as $join_column_name => $parent_attribute_array ) {
 				$target_index_data_array[ $table_name ][] = array(
@@ -170,15 +158,12 @@ abstract class Sqloo_Schema
 		$target_foreign_key_data_array = array();
 		foreach( $all_tables as $table_name => $table_class ) {
 			foreach( $table_class->parent as $join_column_name => $parent_attribute_array ) {
-				$target_foreign_key_data_array[ $table_name ][ $join_column_name ] = array_merge( 
-					$this->_foreign_key_default_attributes,
-					array(
-						"target_table_name" => $parent_attribute_array[Sqloo::PARENT_TABLE_NAME],
-						"target_column_name" => "id",
-						Sqloo::PARENT_ON_DELETE => $parent_attribute_array[Sqloo::PARENT_ON_DELETE],
-						Sqloo::PARENT_ON_UPDATE => $parent_attribute_array[Sqloo::PARENT_ON_UPDATE]
-					)
-				);	
+				$target_foreign_key_data_array[ $table_name ][ $join_column_name ] = array(
+					"target_table_name" => $parent_attribute_array[Sqloo::PARENT_TABLE_NAME],
+					"target_column_name" => "id",
+					Sqloo::PARENT_ON_DELETE => $parent_attribute_array[Sqloo::PARENT_ON_DELETE],
+					Sqloo::PARENT_ON_UPDATE => $parent_attribute_array[Sqloo::PARENT_ON_UPDATE]
+				) + $this->_foreign_key_default_attributes;
 			}
 		}
 		return $target_foreign_key_data_array;
