@@ -1,11 +1,7 @@
 <?php
-
-/* CONFIGURE */
-	//include our headers
-	require( "../Sqloo/Connection.php" );
 	
 /* SETUP */
-	require( "./setup.php" );
+	require_once( "./setup.php" );
 
 /* QUERY EXAMPLES */
 

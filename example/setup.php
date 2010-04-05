@@ -1,17 +1,59 @@
 <?php
 
-	//setup our database pooling function
+/* CONFIGURE */
+	//include our headers
+	require_once( "../Sqloo/Connection.php" );
+	require_once( "../Sqloo/Database.php" );
+
+
+/* CONNECTION */
 	function master_pool()
 	{
 		return array(
 			"address" => "127.0.0.1",
-			"username" => "root",
+			"username" => "sqloo",
 			"password" => "password",
 			"name" => "sqloo",
-			"type" => 0 ? "pgsql" : "mysql"
+			"type" => 1 ? "pgsql" : "mysql"
 		);
 	}
 	
+	//simple local cache
+	class CacheLocal implements Sqloo_CacheInterface
+	{
+	
+		private $_data = array();
+		
+		function set( $key, $data )
+		{
+			$this->_data[$key] = $data;
+		}
+		
+		function get( $key, &$data )
+		{
+			if( array_key_exists( $key, $this->_data ) ) {
+				$data = $this->_data[$key];
+				return TRUE;
+			} else {
+				return FALSE;
+			}
+		}
+		
+		function remove( $key )
+		{
+			if( array_key_exists( $key, $this->_data ) ) {
+				unset( $this->_data[$key] );
+			}
+		}
+	
+	}
+	
+	$cache_class = new CacheLocal();
+	
+	//We init Sqloo with functions to get database configuration and load tables dynamically
+	$sqloo = new Sqloo_Connection( "master_pool", NULL, $cache_class );
+
+/* DATABASE SETUP */
 	//simple load table function
 	function load_table( $table_name, $sqloo )
 	{
@@ -23,15 +65,6 @@
 	{
 		return array( "house", "person", "house-person", "house_normalized" );
 	}
-	
-	//simple local cache
-	require( "./Cache.php" );
-	$cache_class = new CacheExample();
-	
-	//We init Sqloo with functions to get database configuration and load tables dynamically
-	$sqloo = new Sqloo_Connection( "master_pool", NULL, $cache_class );
-
-	require_once( "../Sqloo/Database.php" );
 
 	$database = new Sqloo_Database( "load_table", "list_all_tables" );
 	
