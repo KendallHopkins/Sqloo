@@ -3,17 +3,17 @@
 $item = $sqloo->newTable( "item" );
 $item->column = array(
 	"name" => array(
-		Sqloo::COLUMN_DATA_TYPE => array(
-			"type" => Sqloo::DATATYPE_STRING,
+		Sqloo_Schema::COLUMN_DATA_TYPE => array(
+			"type" => Sqloo_Schema::DATATYPE_STRING,
 			"size" => 32
 		),
-		Sqloo::COLUMN_ALLOW_NULL => FALSE
+		Sqloo_Schema::COLUMN_ALLOW_NULL => FALSE
 	)
 );
 $item->index = array(
 	array(
-		Sqloo::INDEX_COLUMN_ARRAY => array( "name" ), 
-		Sqloo::INDEX_UNIQUE => TRUE
+		Sqloo_Schema::INDEX_COLUMN_ARRAY => array( "name" ), 
+		Sqloo_Schema::INDEX_UNIQUE => TRUE
 	)
 );
 

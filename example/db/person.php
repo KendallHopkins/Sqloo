@@ -3,28 +3,28 @@
 $person = $sqloo->newTable( "person" );
 $person->column = array(
 	"fname" => array(
-		Sqloo::COLUMN_DATA_TYPE => array(
-			"type" => Sqloo::DATATYPE_STRING,
+		Sqloo_Schema::COLUMN_DATA_TYPE => array(
+			"type" => Sqloo_Schema::DATATYPE_STRING,
 			"size" => 32
 		),
-		Sqloo::COLUMN_ALLOW_NULL => FALSE
+		Sqloo_Schema::COLUMN_ALLOW_NULL => FALSE
 	),
 	"lname" => array(
-		Sqloo::COLUMN_DATA_TYPE => array(
-			"type" => Sqloo::DATATYPE_STRING,
+		Sqloo_Schema::COLUMN_DATA_TYPE => array(
+			"type" => Sqloo_Schema::DATATYPE_STRING,
 			"size" => 32
 		),
-		Sqloo::COLUMN_ALLOW_NULL => FALSE
+		Sqloo_Schema::COLUMN_ALLOW_NULL => FALSE
 	)
 );
 $person->index = array(
 	array(
-		Sqloo::INDEX_COLUMN_ARRAY => array( "fname", "lname" ), 
-		Sqloo::INDEX_UNIQUE => FALSE
+		Sqloo_Schema::INDEX_COLUMN_ARRAY => array( "fname", "lname" ), 
+		Sqloo_Schema::INDEX_UNIQUE => FALSE
 	),
 	array(
-		Sqloo::INDEX_COLUMN_ARRAY => array( "lname", "fname" ), 
-		Sqloo::INDEX_UNIQUE => FALSE
+		Sqloo_Schema::INDEX_COLUMN_ARRAY => array( "lname", "fname" ), 
+		Sqloo_Schema::INDEX_UNIQUE => FALSE
 	)
 );
 

@@ -3,9 +3,9 @@
 class Sqloo_Exception extends Exception
 {
 	
-	const BAD_INPUT = 1;
-	const CONNECTION_FAILED = 2;
-	const TRANSACTION_REQUIRED = 3;
+	const BAD_INPUT = -1;
+	const CONNECTION_FAILED = -2;
+	const TRANSACTION_REQUIRED = -3;
 
 	//http://docstore.mik.ua/orelly/java-ent/jenut/ch08_06.htm
 	const QUERY_NO_DATA = 0x02;

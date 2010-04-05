@@ -37,28 +37,28 @@ class Sqloo_Table
 	public function column( $column_name, $data_type, $allow_null = FALSE, $default_value = NULL )
 	{
 		$this->column[ $column_name ] = array(
-			Sqloo::COLUMN_DATA_TYPE => $data_type,
-			Sqloo::COLUMN_ALLOW_NULL => $allow_null,
-			Sqloo::COLUMN_DEFAULT_VALUE => $default_value
+			Sqloo_Schema::COLUMN_DATA_TYPE => $data_type,
+			Sqloo_Schema::COLUMN_ALLOW_NULL => $allow_null,
+			Sqloo_Schema::COLUMN_DEFAULT_VALUE => $default_value
 		);
 	}
 	
-	public function parent( $join_column_name, $parent_table_name, $allow_null = FALSE, $default_value = NULL, $on_delete = Sqloo::ACTION_CASCADE, $on_update = Sqloo::ACTION_CASCADE )
+	public function parent( $join_column_name, $parent_table_name, $allow_null = FALSE, $default_value = NULL, $on_delete = Sqloo_Schema::ACTION_CASCADE, $on_update = Sqloo_Schema::ACTION_CASCADE )
 	{
 		$this->parent[ $join_column_name ] = array(
-			Sqloo::PARENT_TABLE_NAME => $parent_table_name, 
-			Sqloo::PARENT_ALLOW_NULL => $allow_null, 
-			Sqloo::PARENT_DEFAULT_VALUE => $default_value, 
-			Sqloo::PARENT_ON_DELETE => $on_delete, 
-			Sqloo::PARENT_ON_UPDATE => $on_update
+			Sqloo_Schema::PARENT_TABLE_NAME => $parent_table_name, 
+			Sqloo_Schema::PARENT_ALLOW_NULL => $allow_null, 
+			Sqloo_Schema::PARENT_DEFAULT_VALUE => $default_value, 
+			Sqloo_Schema::PARENT_ON_DELETE => $on_delete, 
+			Sqloo_Schema::PARENT_ON_UPDATE => $on_update
 		);
 	}
 	
 	public function index( array $column_array, $unique = FALSE )
 	{
 		$this->index[] = array(
-			Sqloo::INDEX_COLUMN_ARRAY => $column_array,
-			Sqloo::INDEX_UNIQUE => $unique
+			Sqloo_Schema::INDEX_COLUMN_ARRAY => $column_array,
+			Sqloo_Schema::INDEX_UNIQUE => $unique
 		);
 	}
 	

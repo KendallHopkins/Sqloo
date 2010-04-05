@@ -34,39 +34,39 @@ class Sqloo_Datatypes_Postgres implements Sqloo_Datatypes
 	static function getTypeString( $attributes_array )
 	{
 		switch( $attributes_array["type"] ) {
-		case Sqloo::DATATYPE_BOOLEAN:
-			return "boolean";
-		case Sqloo::DATATYPE_INTEGER: 
-			return 	( ( ! array_key_exists( "size", $attributes_array ) ) ? "integer" :
-					( $attributes_array["size"] <= 2 ? "smallint" : 
-					( $attributes_array["size"] <= 4 ? "integer" : 
-			       	( $attributes_array["size"] <= 8 ? "bigint" : 
-			       	( "numeric(".(int)( floor( log( $attributes_array["size"], 10 ) ) + 1 ).",0)") ) ) ) ); //fix this line
-		case Sqloo::DATATYPE_FLOAT:
-			if( ( ! array_key_exists( "size", $attributes_array ) ) ) return "real";
-			else if( $attributes_array["size"] <= 6 ) return "real";
-			else if( $attributes_array["size"] <= 15 ) return "double precision";
-			else throw new Sqloo_Exception( "Size for a float is to large: ".$attributes_array["size"], Sqloo_Exception::BAD_INPUT );
-		case Sqloo::DATATYPE_STRING: 
-			return	( ( ! array_key_exists( "size", $attributes_array ) ) ? "text" : 
-					( "character varying(".(int)$attributes_array["size"].")" ) );
-		case Sqloo::DATATYPE_FILE: 
-			return "Oid";
-		case Sqloo::DATATYPE_TIME:
-			return "timestamp";
-		case Sqloo::DATATYPE_OVERRIDE:
-			return $attributes_array["override"];
-		default: 
-			throw new Sqloo_Exception( "Bad types: ".$attributes_array["type"], Sqloo_Exception::BAD_INPUT );
+			case Sqloo_Schema::DATATYPE_BOOLEAN:
+				return "boolean";
+			case Sqloo_Schema::DATATYPE_INTEGER: 
+				return 	( ( ! array_key_exists( "size", $attributes_array ) ) ? "integer" :
+						( $attributes_array["size"] <= 2 ? "smallint" : 
+						( $attributes_array["size"] <= 4 ? "integer" : 
+				       	( $attributes_array["size"] <= 8 ? "bigint" : 
+				       	( "numeric(".(int)( floor( log( $attributes_array["size"], 10 ) ) + 1 ).",0)") ) ) ) ); //fix this line
+			case Sqloo_Schema::DATATYPE_FLOAT:
+				if( ( ! array_key_exists( "size", $attributes_array ) ) ) return "real";
+				else if( $attributes_array["size"] <= 6 ) return "real";
+				else if( $attributes_array["size"] <= 15 ) return "double precision";
+				else throw new Sqloo_Exception( "Size for a float is to large: ".$attributes_array["size"], Sqloo_Exception::BAD_INPUT );
+			case Sqloo_Schema::DATATYPE_STRING: 
+				return	( ( ! array_key_exists( "size", $attributes_array ) ) ? "text" : 
+						( "character varying(".(int)$attributes_array["size"].")" ) );
+			case Sqloo_Schema::DATATYPE_FILE: 
+				return "Oid";
+			case Sqloo_Schema::DATATYPE_TIME:
+				return "timestamp";
+			case Sqloo_Schema::DATATYPE_OVERRIDE:
+				return $attributes_array["override"];
+			default: 
+				throw new Sqloo_Exception( "Bad types: ".$attributes_array["type"], Sqloo_Exception::BAD_INPUT );
 		}
 	}
 	
 	static function getFunction( $function, $content )
 	{
 		switch( $function ) {
-		case Sqloo_Datatypes::TO_UNIX_TIME: return "EXTRACT( EPOCH FROM {$content} )";
-		case Sqloo_Datatypes::FROM_UNIX_TIME: return "to_timestamp({$content})::timestamp";
-		default: throw new Sqloo_Exception( "Bad function: ".$function, Sqloo_Exception::BAD_INPUT );
+			case Sqloo_Datatypes::TO_UNIX_TIME: return "EXTRACT( EPOCH FROM {$content} )";
+			case Sqloo_Datatypes::FROM_UNIX_TIME: return "to_timestamp({$content})::timestamp";
+			default: throw new Sqloo_Exception( "Bad function: ".$function, Sqloo_Exception::BAD_INPUT );
 		}
 	}
 

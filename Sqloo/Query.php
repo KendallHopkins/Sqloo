@@ -24,15 +24,30 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-require( "Query/Table.php" );
+require_once( "Query/Table.php" );
 
 class Sqloo_Query implements Iterator
 {
 	
-	private $_sqloo;
+	//Order Types
+	const ORDER_ASCENDING = "ASC";
+	const ORDER_DESCENDING = "DESC";
+	
+	//Join Types
+	const JOIN_INNER = "INNER";
+	const JOIN_OUTER = "OUTER";
+	const JOIN_LEFT = "LEFT";
+	const JOIN_RIGHT = "RIGHT";
+	
+	//Locking Types
+	const SELECT_LOCK_NONE = 0;
+	const SELECT_LOCK_SHARE = 1;
+	const SELECT_LOCK_UPDATE = 2;
+	
+	private $_sqloo_connection;
 	
 	/* Query Data */
-	private $_root_query_table_class = NULL;
+	private $_root_table_class = NULL;
 	private $_union_array = NULL;
 	private $_query_data = array(
 		"column" => NULL,
@@ -44,9 +59,9 @@ class Sqloo_Query implements Iterator
 		"page" => NULL,
 		"offset" => NULL,
 		"distinct" => FALSE,
-		"allow_slave" => FALSE,
-		"lock" => Sqloo::SELECT_LOCK_NONE,
-		"lock_wait" => TRUE
+		"lock" => self::SELECT_LOCK_NONE,
+		"lock_wait" => TRUE,
+		"allow_slave" => FALSE
 	);
 	private $_statement_object = NULL;
 	public $parameter_array = array();
@@ -60,9 +75,9 @@ class Sqloo_Query implements Iterator
 	*	@param	array	If this query is a union query this is an array of Sqloo_Query objects
 	*/
 	
-	public function __construct( $sqloo, $union_array = NULL )
+	public function __construct( $sqloo_connection, $union_array = NULL )
 	{
-		$this->_sqloo = $sqloo;
+		$this->_sqloo_connection = $sqloo_connection;
 		$this->_union_array = $union_array;
 	}
 	
@@ -102,13 +117,13 @@ class Sqloo_Query implements Iterator
 	
 	public function table( $table_name )
 	{
-		if( $this->_root_query_table_class !== NULL )
+		if( $this->_root_table_class !== NULL )
 			throw new Sqloo_Exception( "Root table is already set", Sqloo_Exception::BAD_INPUT );
 		if( $this->_union_array !== NULL )
 			throw new Sqloo_Exception( "This is a union query", Sqloo_Exception::BAD_INPUT );
 		
-		$this->_root_query_table_class = new Sqloo_Query_Table( $table_name );
-		return $this->_root_query_table_class;
+		$this->_root_table_class = new Sqloo_Query_Table( $table_name );
+		return $this->_root_table_class;
 	}
 	
 	/**
@@ -125,9 +140,9 @@ class Sqloo_Query implements Iterator
 		if( ! array_key_exists( $key, $this->_query_data ) )
 			throw new Sqloo_Exception( "Bad key: $key", Sqloo_Exception::BAD_INPUT );
 		
-		if( ! in_array( $key, array( "parameter_array" ) ) ) {
+		if( $key === "parameter_array" )
 			$this->_releaseStatementObject();		
-		}
+		
 		return $this->_query_data[$key];
 	}
 	
@@ -136,8 +151,8 @@ class Sqloo_Query implements Iterator
 	*
 	*	Will throw exception if $key is bad
 	*	
-	*	@param	string	The attribute key
-	*	@param	mixed	The attribute value
+	*	@param	string	attribute key
+	*	@param	mixed	attribute value
 	*/
 	
 	public function __set( $key, $value )
@@ -149,29 +164,132 @@ class Sqloo_Query implements Iterator
 	}
 	
 	/**
+	*	Function to add column
+	*	
+	*	@param string	output name string
+	*	@param string	expression string
+	*/
+	
+	public function column( $output_name, $expression )
+	{
+		$this->column[$output_name] = $expression;
+		return $this;
+	}
+	
+	/**
+	*	Function to add where clause
+	*	
+	*	@param string	condition string
+	*/
+	
+	public function where( $condition )
+	{
+		$this->where[] = $condition;
+		return $this;
+	}
+	
+	/**
+	*	Function to order clause
+	*	
+	*	@param string	condition string
+	*/
+	
+	public function order( $expression, $type )
+	{
+		$this->order[$expression] = $type;
+		return $this;
+	}
+	
+	/**
+	*	Function to add having clause
+	*	
+	*	@param string	condition string
+	*/
+	
+	public function having( $condition )
+	{
+		$this->where[] = $condition;
+		return $this;
+	}
+	
+	/**
+	*	Function to set limit clause
+	*	
+	*	@param int	row limit
+	*/
+	
+	public function limit( $limit, $page = 0 )
+	{
+		$this->limit = $limit;
+		$this->page = $page;
+		return $this;
+	}
+	
+	/**
+	*	Function to set limit offset clause
+	*	
+	*	@param int	offset number
+	*/
+	
+	public function offset( $offset )
+	{
+		$this->offset = $offset;
+		return $this;
+	}
+	
+	/**
+	*	Function to set distinct
+	*	
+	*	@param bool	only distinct
+	*/
+	
+	public function distinct( $distinct )
+	{
+		$this->distinct = $distinct;
+		return $this;
+	}
+	
+	/**
+	*	Function to set row locking
+	*	
+	*	@param bool	only distinct
+	*/
+	
+	public function lock( $type, $wait = TRUE )
+	{
+		$this->lock = $type;
+		$this->lock_wait = $wait;
+		return $this;
+	}
+	
+	/**
 	*	Executes the query object
 	*
 	*	@param	array	key-value array of escaped values
 	*/
 	
-	public function run( array $parameter_array = NULL )
+	public function run( array $parameter_array = array() )
 	{
 		//For some reason if we don't bind any parameters, it doesn't prepare the query, even though it says it should. So the object can't be reused :(
 		if( ( ! $this->_statement_object ) || ( ! $parameter_array ) ) 
-			$this->_statement_object = $this->_sqloo->prepare( $this->getQueryString(), TRUE );
+			$this->_statement_object = $this->_sqloo_connection->prepare( $this->getQueryString(), TRUE );
 		
-		if( ! $parameter_array ) $parameter_array = array();
 		$parameter_array += $this->getParameterArray();
 				
-		$this->_sqloo->execute( $this->_statement_object, $parameter_array );
+		$this->_sqloo_connection->execute( $this->_statement_object, $parameter_array );
 	}
 	
-	public function explain( array $parameter_array = NULL )
+	/**
+	*	Explains the query object
+	*
+	*	@param	array	key-value array of escaped values
+	*/
+	
+	public function explain( array $parameter_array = array() )
 	{
-		if( ! $parameter_array ) $parameter_array = array();
 		$parameter_array += $this->getParameterArray();
 		
-		return $this->_sqloo->query( "EXPLAIN ".$this->getQueryString(), $parameter_array )->fetchAll( PDO::FETCH_ASSOC );
+		return $this->_sqloo_connection->query( "EXPLAIN ".$this->getQueryString(), $parameter_array )->fetchAll( PDO::FETCH_ASSOC );
 	}
 	
 	/**
@@ -193,6 +311,12 @@ class Sqloo_Query implements Iterator
 			$this->_getLockString();
 	}
 	
+	/**
+	*	Counts rows returned by query
+	*
+	*	@return	int	row count
+	*/
+	
 	public function count()
 	{
 		if( ! $this->_statement_object )
@@ -201,28 +325,50 @@ class Sqloo_Query implements Iterator
 		return $this->_statement_object->rowCount();			
 	}
 	
+	/**
+	*	Create an IN expression
+	*
+	*	@return	string	in part of expression (ie. "IN( .... )" )
+	*/
+	
 	public function inArray( array $array )
 	{
 		if( ! $array ) throw new Sqloo_Exception( "Empty Array passed", Sqloo_Exception::BAD_INPUT );
-		static $in_array_index = 0; //keeps the unescaped array keys from conflicting
-		$i = 0;
 		$in_array_keys = array();
-		$key_prefix = "_in_".$in_array_index++."_";
 		foreach( $array as $in_array_item ) {
-			$key = $key_prefix.$i++;
-			$this->parameter_array[$key] = $in_array_item;
-			$in_array_keys[] = ":".$key;
+			$in_array_keys[] = $this->parameter( $in_array_item );
 		}
 		return "IN (".implode( ",", $in_array_keys ).")";
 	}
 	
+	/**
+	*	Adds a parameter to the query
+	*
+	*	@return	string	parameter reference
+	*/
+	
 	public function parameter( $parameter )
 	{
 		static $parameter_index = 0;
-		$key = "_param_".$parameter_index++;
+		$key = "_p_".$parameter_index++;
 		$this->parameter_array[$key] = $parameter;
 		return ":".$key;
 	}
+	
+	/**
+	*	Shortcut for ->parameter( .. );
+	*/
+	
+	public function p( $parameter )
+	{
+		return $this->parameter( $parameter );
+	}
+	
+	/**
+	*	Accessor for the internal parameter array
+	*
+	*	@return	array	associtated array
+	*/
 	
 	public function getParameterArray()
 	{
@@ -286,46 +432,48 @@ class Sqloo_Query implements Iterator
 	
 	private function _getFromString()
 	{
-		if( ( ! $this->_root_query_table_class ) && ( ! $this->_union_array ) ) 
+		if( ( ! $this->_root_table_class ) && ( ! $this->_union_array ) ) 
 			throw new Sqloo_Exception( "Root table is not set", Sqloo_Exception::BAD_INPUT );
-		if( ( $this->_root_query_table_class ) && ( $this->_union_array ) )
+		if( ( $this->_root_table_class ) && ( $this->_union_array ) )
 			throw new Sqloo_Exception( "Nothing set", Sqloo_Exception::BAD_INPUT );
 		
 		$from_string = "FROM ";
-		if( $this->_root_query_table_class ) {
-			$from_string .= "\"".$this->_root_query_table_class->getTableName()."\" AS \"".$this->_root_query_table_class->getReference()."\"\n";
-			foreach( $this->_getJoinData( $this->_root_query_table_class ) as $join_data ) {
+		if( $this->_root_table_class ) {
+			$from_string .= "\"".$this->_root_table_class->getTableName()."\" AS \"".$this->_root_table_class->getReference()."\"\n";
+			foreach( $this->_getJoinData( $this->_root_table_class ) as $join_data ) {
 				switch( $join_data["type"] ) {
-				case Sqloo_Query_Table::JOIN_CHILD:
-					$from_string .= 
-						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
-						"ON \"".$join_data["reference_to"]."\".".$join_data["join_column"]." = \"".$join_data["reference_from"]."\".id\n";
-					break;
-				case Sqloo_Query_Table::JOIN_PARENT:
-					$from_string .= 
-						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
-						"ON \"".$join_data["reference_to"]."\".id = \"".$join_data["reference_from"]."\".".$join_data["join_column"]."\n";
-					break;
-				case Sqloo_Query_Table::JOIN_NM:
-					$from_string .= 
-						$join_data["join_type"]." JOIN \"".$join_data["table_nm"]."\" AS \"".$join_data["reference_nm"]."\"\n".
-						"ON \"".$join_data["reference_from"]."\".id = \"".$join_data["reference_nm"]."\".".$join_data["table_from"]."\n".
-						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
-						"ON \"".$join_data["reference_to"]."\".id = \"".$join_data["reference_nm"]."\".".$join_data["table_to"]."\n";
-					break;
-				case Sqloo_Query_Table::JOIN_CROSS:
-					$from_string .= 
-						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
-						"ON 1\n";
-					break;
-				case Sqloo_Query_Table::JOIN_CUSTOM_ON:
-					$from_string .= 
-						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
-						"ON ".$join_data["on_string"]."\n";
-					break;
+					case Sqloo_Query_Table::JOIN_CHILD:
+						$from_string .= 
+							$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
+							"ON ".$join_data["to_column_ref"]." = ".$join_data["from_column_ref"]."\n";
+						break;
+					case Sqloo_Query_Table::JOIN_PARENT:
+						$from_string .= 
+							$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
+							"ON ".$join_data["to_column_ref"]." = ".$join_data["from_column_ref"]."\n";
+						break;
 					
-				default:
-					throw new Sqloo_Exception( "Bad join type, type_id: ".$join_data["type"], Sqloo_Exception::BAD_INPUT );
+					case Sqloo_Query_Table::JOIN_NM:
+						$from_string .= 
+							$join_data["join_type"]." JOIN \"".$join_data["table_nm"]."\" AS \"".$join_data["reference_nm"]."\"\n".
+							"ON \"".$join_data["reference_from"]."\".id = \"".$join_data["reference_nm"]."\".".$join_data["table_from"]."\n".
+							$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
+							"ON \"".$join_data["reference_to"]."\".id = \"".$join_data["reference_nm"]."\".".$join_data["table_to"]."\n";
+						break;
+					
+					case Sqloo_Query_Table::JOIN_CROSS:
+						$from_string .= 
+							$join_data["join_type"]." CROSS JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n";
+						break;
+					
+					case Sqloo_Query_Table::JOIN_CUSTOM_ON:
+						$from_string .= 
+							$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
+							"ON ".$join_data["on_string"]."\n";
+						break;
+						
+					default:
+						throw new Sqloo_Exception( "Bad join type, type_id: ".$join_data["type"], Sqloo_Exception::BAD_INPUT );
 				}
 			}
 		} else {
@@ -388,17 +536,17 @@ class Sqloo_Query implements Iterator
 	private function _getLockString()
 	{
 		$lock_string = "";
-		if( $this->_query_data["lock"] !== Sqloo::SELECT_LOCK_NONE ) {
-			if( ! $this->_sqloo->inTransaction() )
+		if( $this->_query_data["lock"] !== self::SELECT_LOCK_NONE ) {
+			if( ! $this->_sqloo_connection->inTransaction() )
 				throw new Sqloo_Exception( "Locking row with selects requires to be in a transaction", Sqloo_Exception::TRANSACTION_REQUIRED );
 			
-			switch( $this->_sqloo->getDBType() ) {
-				case Sqloo::DB_MYSQL:
+			switch( $this->_sqloo_connection->getDBType() ) {
+				case Sqloo_Connection::DB_MYSQL:
 					switch( $this->_query_data["lock"] ) {
-						case Sqloo::SELECT_LOCK_SHARE:
+						case self::SELECT_LOCK_SHARE:
 							$lock_string .= "LOCK IN SHARE MODE\n";
 							break;
-						case Sqloo::SELECT_LOCK_UPDATE:
+						case self::SELECT_LOCK_UPDATE:
 							$lock_string .= "FOR UPDATE\n";
 							break;
 						default:
@@ -408,12 +556,12 @@ class Sqloo_Query implements Iterator
 					if( ! $this->_query_data["lock_wait"] ) throw new Exception( "Mysql doesn't support NOWAIT for locking tables on select", Sqloo_Exception::BAD_INPUT );
 					break;
 					
-				case Sqloo::DB_PGSQL:
+				case Sqloo_Connection::DB_PGSQL:
 					switch( $this->_query_data["lock"] ) {
-						case Sqloo::SELECT_LOCK_SHARE:
+						case self::SELECT_LOCK_SHARE:
 							$lock_string .= "FOR SHARE\n";
 							break;
-						case Sqloo::SELECT_LOCK_UPDATE:
+						case self::SELECT_LOCK_UPDATE:
 							$lock_string .= "FOR UPDATE\n";
 							break;
 						default:
@@ -457,7 +605,7 @@ class Sqloo_Query implements Iterator
 
 	function next()
 	{
-		++$this->position;
+		$this->position++;
 		$this->_current_row = $this->fetchRow();
 	}
 

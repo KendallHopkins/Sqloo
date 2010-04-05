@@ -64,39 +64,39 @@ class Sqloo_Query_Table
 		return $this->_nm_query_table_class;
 	}
 	
-	public function joinChild( $child_table_name, $join_column, $join_type = Sqloo::JOIN_INNER )
+	public function joinChild( $child_table_name, $join_column, $join_type = Sqloo_Query::JOIN_INNER )
 	{
 		$new_sqloo_query_table = new self( $child_table_name, $this->_reference."|".$child_table_name."+".$join_column );
 		$this->_join_data[] = array(
 			"type" => Sqloo_Query_Table::JOIN_CHILD,
 			"class" => $new_sqloo_query_table,
 			"table_to" => $child_table_name,
-			"reference_from" => $this->getReference(),
 			"reference_to" => $new_sqloo_query_table->getReference(),
-			"join_column" => $join_column,
-			"join_type" => $join_type
+			"join_type" => $join_type,
+			"to_column_ref" => $new_sqloo_query_table->$join_column,
+			"from_column_ref" => $this->id
 		);
 		return $new_sqloo_query_table;
 	}
 	
-	public function joinParent( $parent_table_name, $join_column, $join_type = Sqloo::JOIN_INNER )
+	public function joinParent( $parent_table_name, $join_column, $join_type = Sqloo_Query::JOIN_INNER )
 	{
 		$new_sqloo_query_table = new self( $parent_table_name, $this->_reference."|".$parent_table_name."++".$join_column );
 		$this->_join_data[] = array(
 			"type" => Sqloo_Query_Table::JOIN_PARENT,
 			"class" => $new_sqloo_query_table,
 			"table_to" => $parent_table_name,
-			"reference_from" => $this->getReference(),
 			"reference_to" => $new_sqloo_query_table->getReference(),
-			"join_column" => $join_column,
+			"to_column_ref" => $new_sqloo_query_table->id,
+			"from_column_ref" => $this->$join_column,
 			"join_type" => $join_type
 		);
 		return $new_sqloo_query_table;
 	}
 	
-	public function joinNM( $table_name, $join_type = Sqloo::JOIN_INNER )
+	public function joinNM( $table_name, $join_type = Sqloo_Query::JOIN_INNER )
 	{
-		$nm_table_name = Sqloo::computeNMTableName( $this->_name, $table_name );
+		$nm_table_name = Sqloo_Connection::computeNMTableName( $this->_name, $table_name );
 		$new_nm_sqloo_query_table = new self( $nm_table_name, $this->_reference."|".$nm_table_name );
 		$new_sqloo_query_table = new self( $table_name, $this->_reference."|".$table_name, $new_nm_sqloo_query_table );
 		$this->_join_data[] = array(
@@ -113,7 +113,7 @@ class Sqloo_Query_Table
 		return $new_sqloo_query_table;
 	}
 	
-	public function joinCross( $table_name, $join_type = Sqloo::JOIN_INNER )
+	public function joinCross( $table_name, $join_type = Sqloo_Query::JOIN_INNER )
 	{
 		$cross_table = new self( $table_name, $this->_reference."||".$table_name );
 		$this->_join_data[] = array(
@@ -127,7 +127,7 @@ class Sqloo_Query_Table
 		return $cross_table;
 	}
 	
-	public function joinCustomOn( $table_name, &$on_string, $join_type = Sqloo::JOIN_INNER )
+	public function joinCustomOn( $table_name, &$on_string, $join_type = Sqloo_Query::JOIN_INNER )
 	{
 		$cross_table = new self( $table_name, $this->_reference."||".$table_name );
 		$this->_join_data[] = array(

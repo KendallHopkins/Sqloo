@@ -24,99 +24,35 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-require( "Sqloo/Query.php" );
-require( "Sqloo/Table.php" );
-require( "Sqloo/CacheInterface.php" );
-require( "Sqloo/Exception.php" );
-require( "Sqloo/Datatypes.php" );
+require_once( "Query.php" );
+require_once( "Table.php" );
+require_once( "CacheInterface.php" );
+require_once( "Exception.php" );
+require_once( "Datatypes.php" );
+require_once( "Utility.php" );
 
-class Sqloo
+class Sqloo_Connection
 {
 	
 	//Database Type
 	const DB_MYSQL = "mysql";
 	const DB_PGSQL = "pgsql";
 	
-	
-	//Column Attributes
-	const COLUMN_DATA_TYPE = "column_data_type"; //string
-	const COLUMN_ALLOW_NULL = "allow_null"; //bool
-	const COLUMN_DEFAULT_VALUE = "default_value"; //mixed, (string, int, float, NULL)
-	const COLUMN_PRIMARY_KEY = "column_primary_key"; //bool
-	const COLUMN_AUTO_INCREMENT = "column_auto_increment"; //bool
-
-	//Parent Attributes
-	const PARENT_TABLE_NAME = "parent_table_name"; //string
-	const PARENT_ALLOW_NULL = "allow_null"; //bool, alias to COLUMN_ALLOW_NULL
-	const PARENT_DEFAULT_VALUE = "default_value"; //mixed, (string, int, float, NULL), alias to COLUMN_DEFAULT_VALUE
-	const PARENT_ON_DELETE = "parent_on_delete"; //action - see below
-	const PARENT_ON_UPDATE = "parent_on_update"; //action - see below
-			
-	//Index Attributes
-	const INDEX_COLUMN_ARRAY = "index_column_array"; //array
-	const INDEX_UNIQUE = "index_unique"; //bool
-	
-	//Actions
-	const ACTION_RESTRICT = "RESTRICT";
-	const ACTION_CASCADE = "CASCADE";
-	const ACTION_SET_NULL = "SET NULL";
-	const ACTION_NO_ACTION = "NO ACTION";
-	
-	//Order Types
-	const ORDER_ASCENDING = "ASC";
-	const ORDER_DESCENDING = "DESC";
-	
-	//Join Types
-	const JOIN_INNER = "INNER";
-	const JOIN_OUTER = "OUTER";
-	const JOIN_LEFT = "LEFT";
-	const JOIN_RIGHT = "RIGHT";
-	
-	//Datatypes
-	const DATATYPE_BOOLEAN = 1;
-	const DATATYPE_INTEGER = 2;
-	const DATATYPE_FLOAT = 3;
-	const DATATYPE_STRING = 4;
-	const DATATYPE_FILE = 5;
-	const DATATYPE_TIME = 6;
-	const DATATYPE_OVERRIDE = 7;
-	
-	const SELECT_LOCK_NONE = 0;
-	const SELECT_LOCK_SHARE = 1;
-	const SELECT_LOCK_UPDATE = 2;
-	
-	//Query Types (private)
-	/** @access private */
-	const QUERY_MASTER = 1;
-	/** @access private */
-	const QUERY_SLAVE = 2;
-
-	private $_master_db_function;
-	private $_slave_db_function;
-	private $_load_table_function;
-	private $_list_all_tables_function;
-	private $_caching_class;
-	
-	private $_table_array = array();
-	private $_transaction_depth = 0;
-	private $_transaction_cache_array = array();
-	
 	/**
 	*	Construct Function
-	*	@param string Function that is called when Sqloo needs a master db configuration, should return a random master configuration
-	*	@param string Function that is called when Sqloo needs a slave db configuration, should return a random slave configuration
-	*	@param string Function that is called when Sqloo needs to access a table that isn't loaded, allows dynamically loaded tables
-	*	@param string Function that is called when Sqloo needs a list of all the available tables
+	*	@param callback Function that is called when Sqloo needs a master db configuration, should return a random master configuration
+	*	@param callback Function that is called when Sqloo needs a slave db configuration, should return a random slave configuration
+	*	@param class 	Class that implements Sqloo_CacheInterface
 	*	@returns Sqloo
 	*/
 	
-	public function __construct( $master_db_function, $slave_db_function = NULL, $load_table_function = NULL, $list_all_tables_function = NULL, $caching_class = NULL ) 
+	public function __construct( $master_db_function, $slave_db_function = NULL, $caching_class = NULL ) 
 	{
+		if( ! is_null( $caching_class ) && ! ( $caching_class instanceof Sqloo_CacheInterface ) )
+			throw new Sqloo_Exception( "Caching class doesn't implement Sqloo_CacheInterface", Sqloo_Exception::BAD_INPUT );
+	
 		$this->_master_db_function = $master_db_function;
 		$this->_slave_db_function = $slave_db_function;
-		$this->_load_table_function = $load_table_function;
-		$this->_list_all_tables_function = $list_all_tables_function;
-		if( ! is_null( $caching_class ) && ! ( $caching_class instanceof Sqloo_CacheInterface ) ) throw new Sqloo_Exception( "Caching class doesn't implement Sqloo_CacheInterface", Sqloo_Exception::BAD_INPUT );
 		$this->_caching_class = $caching_class;
 	}
 	
@@ -197,7 +133,8 @@ class Sqloo
 	*/
 	
 	public function execute( $statement_object, array $parameters_array = NULL )
-	{
+	{	
+	
 		if( ! is_null( $parameters_array ) ) {
 			foreach( $parameters_array as $key => $value ) {
 				if( is_null( $value ) ) {
@@ -296,9 +233,9 @@ class Sqloo
 				$this->_transaction_cache_array[$this->_transaction_depth - 1] = $outer_cache_layer + $this->_transaction_cache_array[$this->_transaction_depth - 1];
 			} else {
 				foreach( $outer_cache_layer as $key => $info ) {
-					switch( $info["type"] ) {
-						case "set": $this->_caching_class->set( $key, $info["data"] ); break;
-						case "remove": $this->_caching_class->remove( $key ); break;
+					switch( $info[self::_CACHE_INDEX_TYPE] ) {
+						case self::_CACHE_TYPE_SET: $this->_caching_class->set( $key, $info[self::_CACHE_INDEX_DATA] ); break;
+						case self::_CACHE_TYPE_REMOVE: $this->_caching_class->remove( $key ); break;
 						default: throw new Exception( "bad type" ); break;
 					}
 				}
@@ -312,6 +249,54 @@ class Sqloo
 			}
 		} else {
 			throw new Sqloo_Exception( "not in a transaction, didn't commit", Sqloo_Exception::BAD_INPUT );		
+		}
+	}
+	
+	/* Transactional Caching */
+	
+	public function cacheSet( $key, $data )
+	{
+		if( $this->_transaction_depth > 0 ) {
+			$this->_transaction_cache_array[$this->_transaction_depth - 1][$key] = array(
+				self::_CACHE_INDEX_TYPE => self::_CACHE_TYPE_SET,
+				self::_CACHE_INDEX_DATA => $data
+			);
+		} else {
+			$this->_caching_class->set( $key, $data );
+		}
+	}
+	
+	public function cacheGet( $key, &$data )
+	{
+		//try to find it in the cache transaction layers, before hitting the main cache
+		for( $current_cache_layer = $this->_transaction_depth - 1; $current_cache_layer >= 0; $current_cache_layer-- ) {
+			if( array_key_exists( $key, $this->_transaction_cache_array[$current_cache_layer] ) ) {
+				switch( $this->_transaction_cache_array[$current_cache_layer][$key][self::_CACHE_INDEX_TYPE] ) {
+					case self::_CACHE_TYPE_SET:
+						$data = $this->_transaction_cache_array[$current_cache_layer][$key][self::_CACHE_INDEX_DATA];
+						return TRUE;
+						break;
+					case self::_CACHE_TYPE_REMOVE:
+						return FALSE;
+						break;
+					default:
+						throw new Exception( "bad type" );
+						break;
+				}
+			}
+		}
+		
+		return $this->_caching_class->get( $key, $data );
+	}
+	
+	public function cacheRemove( $key )
+	{
+		if( $this->_transaction_depth > 0 ) {
+			$this->_transaction_cache_array[$this->_transaction_depth - 1][$key] = array(
+				self::_CACHE_INDEX_TYPE => self::_CACHE_TYPE_REMOVE
+			);
+		} else {
+			$this->_caching_class->remove( $key );
 		}
 	}
 	
@@ -340,51 +325,30 @@ class Sqloo
 	public function insert( $table_name, array $insert_array )
 	{		
 		$insert_string = "INSERT INTO \"".$table_name."\"\n";
-		$table_column_array = $this->_getTable( $table_name )->column;
-		$column_array = array_keys( $insert_array );
-		$value_array = array();
-		$escaped_value_array = array();
+		$column_array = array();
+		$param_value_array = array();
+		$placeholder_value_array = array();
 		
 		//build query string
-		foreach( array_values( $insert_array ) as $value ) {
+		foreach( $insert_array as $column_name => $value ) {
+			$column_array[] = $column_name;
 			if( is_array( $value ) ) { //string inside an array is "safe"
-				$escaped_value_array = $value[0];
+				$placeholder_value_array = $value[0];
 			} else { //else it's dirty
-				$escaped_value_array[] = "?";
-				$value_array[] = $value;
+				$placeholder_value_array[] = "?";
+				$param_value_array[] = $value;
 			}
 		}
 		
-		//check if we have a "magic" added/modifed field
-		foreach( array( "added", "modified" ) as $magic_column ) {
-			if( array_key_exists( $magic_column, $table_column_array ) &&
-				! array_key_exists( $magic_column, $insert_array )
-			) {
-				$column_array[] = $magic_column;
-				$escaped_value_array[] = "CURRENT_TIMESTAMP";
-			}
-		}
-		
-		$insert_string .= "(\"".implode( "\",\"", $column_array )."\") VALUES(".implode( ",", $escaped_value_array ).")";
-		$this->query( $insert_string, $value_array );
+		$insert_string .= "(\"".implode( "\",\"", $column_array )."\") VALUES(".implode( ",", $placeholder_value_array ).")";
+		$this->query( $insert_string, $param_value_array );
 		return $this->_getDatabaseResource( self::QUERY_MASTER )->lastInsertId( $table_name."_id_seq" );
 	}
 	
 	public function insertQuery( $table_name, Sqloo_Query $query, array $parameter_array = NULL )
 	{
-		$insert_string = "INSERT INTO \"".$table_name."\"\n";
-		if( is_string( $table_name ) ) { //quick check to make sure it's not a temp table
-			$table_column_array = $this->_getTable( $table_name )->column;
-		
-			//check if we have a "magic" added/modifed field
-			foreach( array( "added", "modified" ) as $magic_column ) {
-				if( array_key_exists( $magic_column, $table_column_array ) && ( ! array_key_exists( $magic_column, $query->column ) ) ) 
-					$query->column[$magic_column] = "CURRENT_TIMESTAMP";
-			}
-		}
-		
-
-		$insert_string .= 
+		$insert_string =
+			"INSERT INTO \"".$table_name."\"\n". 
 			" (".implode( ",", array_keys( $query->column ) ).")\n".
 			(string)$query; //transform object to string (function __toString)
 		
@@ -412,10 +376,6 @@ class Sqloo
 		$update_string = 
 			"UPDATE \"".$table_name."\"\n".
 			"SET ";
-		
-		//check if we have a "magic" modifed field
-		if( array_key_exists( "modified", $this->_getTable($table_name)->column ) )
-			$update_string .= "modified=CURRENT_TIMESTAMP,";
 		
 		//add other fields
 		foreach( array_keys( $update_array ) as $key )
@@ -484,62 +444,7 @@ class Sqloo
 		}
 		return $query_union;
 	}
-	
-	/**
-	*	Make a new Sqloo_Table Object and return it.
-	*	
-	*	@param	string		New table name
-	*	@return	Sqloo_Table	Empty Sqloo_Table object
-	*/
-	
-	public function newTable( $table_name )
-	{
-		return $this->_table_array[ $table_name ] = new Sqloo_Table( $table_name );
-	}
-	
-	/**
-	*	Make a new Sqloo_Table Object, setup the parents and return it.
-	*	
-	*	@param	Sqloo_Table	Parent table 1
-	*	@param	Sqloo_Table	Parent table 2
-	*	@return	Sqloo_Table	N:M Sqloo_Table object, used for NMJoins
-	*/
-	
-	public function newNMTable( $sqloo_table_name_1, $sqloo_table_name_2 )
-	{
-		$many_to_many_table = $this->newTable( self::computeNMTableName( $sqloo_table_name_1, $sqloo_table_name_2 ) );
-		$many_to_many_table->parent = array(
-			$sqloo_table_name_1 => array(
-				Sqloo::PARENT_TABLE_NAME => $sqloo_table_name_1, 
-				Sqloo::PARENT_ALLOW_NULL => FALSE, 
-				Sqloo::PARENT_ON_DELETE => Sqloo::ACTION_CASCADE, 
-				Sqloo::PARENT_ON_UPDATE => Sqloo::ACTION_CASCADE
-			),
-			$sqloo_table_name_2 => array(
-				Sqloo::PARENT_TABLE_NAME => $sqloo_table_name_2, 
-				Sqloo::PARENT_ALLOW_NULL => FALSE, 
-				Sqloo::PARENT_ON_DELETE => Sqloo::ACTION_CASCADE, 
-				Sqloo::PARENT_ON_UPDATE => Sqloo::ACTION_CASCADE
-			)
-		);
-		return $many_to_many_table;
-	}
-
-	/**
-	*	Used to compute the name of the NM between two tables.
-	*
-	*	Order they are put in makes no difference to the output.
-	*
-	*	@param	string	First table name
-	*	@param	string	Second table name
-	*	@return	string	NM Table name
-	*/
-	
-	static public function computeNMTableName( $table_name_1, $table_name_2 )
-	{
-		return ( (string)$table_name_1 < (string)$table_name_2 ) ? $table_name_1."-".$table_name_2 : $table_name_2."-".$table_name_1;
-	}
-	
+		
 	/**
 	*	Get's the datatype for a variable type.
 	*
@@ -550,15 +455,15 @@ class Sqloo
 	public function getTypeString( array $attributes_array )
 	{
 		switch( $this->getDBType() ) {
-		case self::DB_MYSQL: 
-			require_once( "Sqloo/Datatypes/Mysql.php" );
-			return Sqloo_Datatypes_Mysql::getTypeString( $attributes_array );
-			break;
-		case self::DB_PGSQL: 
-			require_once( "Sqloo/Datatypes/Postgres.php" );
-			return Sqloo_Datatypes_Postgres::getTypeString( $attributes_array );
-			break;
-		default: throw new Sqloo_Exception( "Unknown database: ".$database_configuration["type"], Sqloo_Exception::BAD_INPUT );
+			case self::DB_MYSQL: 
+				require_once( "Datatypes/Mysql.php" );
+				return Sqloo_Datatypes_Mysql::getTypeString( $attributes_array );
+				break;
+			case self::DB_PGSQL: 
+				require_once( "Datatypes/Postgres.php" );
+				return Sqloo_Datatypes_Postgres::getTypeString( $attributes_array );
+				break;
+			default: throw new Sqloo_Exception( "Unknown database: ".$database_configuration["type"], Sqloo_Exception::BAD_INPUT );
 		}
 	}
 	
@@ -572,15 +477,15 @@ class Sqloo
 	public function getFunction( $function, $content )
 	{
 		switch( $this->getDBType() ) {
-		case self::DB_MYSQL: 
-			require_once( "Sqloo/Datatypes/Mysql.php" );
-			return Sqloo_Datatypes_Mysql::getFunction( $function, $content );
-			break;
-		case self::DB_PGSQL: 
-			require_once( "Sqloo/Datatypes/Postgres.php" );
-			return Sqloo_Datatypes_Postgres::getFunction( $function, $content );
-			break;
-		default: throw new Sqloo_Exception( "Unknown database: ".$database_configuration["type"], Sqloo_Exception::BAD_INPUT );
+			case self::DB_MYSQL: 
+				require_once( "Datatypes/Mysql.php" );
+				return Sqloo_Datatypes_Mysql::getFunction( $function, $content );
+				break;
+			case self::DB_PGSQL: 
+				require_once( "Datatypes/Postgres.php" );
+				return Sqloo_Datatypes_Postgres::getFunction( $function, $content );
+				break;
+			default: throw new Sqloo_Exception( "Unknown database: ".$database_configuration["type"], Sqloo_Exception::BAD_INPUT );
 		}
 	}
 	
@@ -595,102 +500,33 @@ class Sqloo
 		return $database_configuration["type"];
 	}
 	
-	/**
-	*	Checks and correct the database schema to match the table schema setup in code.
-	*
-	*	@return	string	Log of the queries run.
-	*/
+	/* Privates */
 	
-	public function checkSchema()
-	{
-		switch( $this->getDBType() ) {
-		case self::DB_MYSQL: $file_name = "Mysql"; break;
-		case self::DB_PGSQL: $file_name = "Postgres"; break;
-		default: throw new Sqloo_Exception( "Bad database type: ".$database_configuration["type"], Sqloo_Exception::BAD_INPUT ); break;
-		}
+	//Query Types (private)
+	/** @access private */
+	const QUERY_MASTER = 1;
+	/** @access private */
+	const QUERY_SLAVE = 2;
+	
+	//Cache Array Indexes (private)
+	/** @access private */
+	const _CACHE_INDEX_TYPE = 3;
+	/** @access private */
+	const _CACHE_INDEX_DATA = 4;
+	
+	//Cache Types (private)
+	/** @access private */
+	const _CACHE_TYPE_SET = 5;
+	/** @access private */
+	const _CACHE_TYPE_REMOVE = 6;
 
-		require_once( "Sqloo/Schema.php" );
-		require_once( "Sqloo/Schema/".$file_name.".php" );
-		$class_name = "Sqloo_Schema_".$file_name;
-		$schema = new $class_name( $this );
-		return $schema->checkSchema();
-	}
+	private $_master_db_function;
+	private $_slave_db_function;
+	private $_caching_class;
 	
-	/* Transactional Caching */
-	
-	public function cacheSet( $key, $data )
-	{
-		if( $this->_transaction_depth > 0 ) {
-			$this->_transaction_cache_array[$this->_transaction_depth - 1][$key] = array( "type" => "set", "data" => $data );
-		} else {
-			$this->_caching_class->set( $key, $data );
-		}
-	}
-	
-	public function cacheGet( $key, &$data )
-	{
-		//try to find it in the cache transaction layers
-		for( $current_cache_layer = $this->_transaction_depth - 1; $current_cache_layer >= 0; $current_cache_layer-- ) {
-			if( array_key_exists( $key, $this->_transaction_cache_array[$current_cache_layer] ) ) {
-				switch( $this->_transaction_cache_array[$current_cache_layer][$key]["type"] ) {
-					case "set":
-						$data = $this->_transaction_cache_array[$current_cache_layer][$key]["data"];
-						return TRUE;
-						break;
-					case "remove":
-						return FALSE;
-						break;
-					default:
-						throw new Exception( "bad type" );
-						break;
-				}
-			}
-		}
-		
-		return $this->_caching_class->get( $key, $data );
-	}
-	
-	public function cacheRemove( $key )
-	{
-		if( $this->_transaction_depth > 0 ) {
-			$this->_transaction_cache_array[$this->_transaction_depth - 1][$key] = array( "type" => "remove" );
-		} else {
-			$this->_caching_class->remove( $key );
-		}
-	}
-	
-	
-	/* Private Functions */
-	
-	public function _getTable( $table_name )
-	{
-		if( ! array_key_exists( $table_name, $this->_table_array ) )
-			$this->_loadTable( $table_name );
-		return $this->_table_array[$table_name];
-	}
-	
-	private function _loadTable( $table_name )
-	{
-		if( ! array_key_exists( $table_name, $this->_table_array ) ) {
-			if( $this->_load_table_function && is_callable( $this->_load_table_function ) )
-				call_user_func( $this->_load_table_function, $table_name, $this );
-			if( ! array_key_exists( $table_name, $this->_table_array ) )
-				throw new Sqloo_Exception( "could not load table: ".$table_name, Sqloo_Exception::BAD_INPUT );
-		}
-	}
-	
-	public function _getAllTables()
-	{
-		static $all_tables_loaded = FALSE;
-		if( ! $all_tables_loaded ) {
-			if( is_callable( $this->_list_all_tables_function ) )
-				foreach( call_user_func( $this->_list_all_tables_function ) as $table_name )
-					$this->_loadTable( $table_name );
-			
-			$all_tables_loaded = TRUE;
-		}
-		return $this->_table_array;
-	}
+	private $_table_array = array();
+	private $_transaction_depth = 0;
+	private $_transaction_cache_array = array();
 	
 	public function _getDatabaseResource( $type_id )
 	{
@@ -721,14 +557,14 @@ class Sqloo
 		static $database_configuration_array = array();
 		if( ! array_key_exists( $type_id, $database_configuration_array ) ) {
 			switch( $type_id ) {
-			case self::QUERY_MASTER:
-				$function_name_array = array( $this->_master_db_function );
-				break;
-			case self::QUERY_SLAVE:
-				$function_name_array = array( $this->_slave_db_function, $this->_master_db_function );
-				break;
-			default:
-				throw new Sqloo_Exception( "Bad type_id: ".$type_string, Sqloo_Exception::BAD_INPUT );
+				case self::QUERY_MASTER:
+					$function_name_array = array( $this->_master_db_function );
+					break;
+				case self::QUERY_SLAVE:
+					$function_name_array = array( $this->_slave_db_function, $this->_master_db_function );
+					break;
+				default:
+					throw new Sqloo_Exception( "Bad type_id: ".$type_string, Sqloo_Exception::BAD_INPUT );
 			}
 			
 			do {

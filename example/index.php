@@ -2,7 +2,7 @@
 
 /* CONFIGURE */
 	//include our headers
-	require( "../Sqloo.php" );
+	require( "../Sqloo/Connection.php" );
 	
 /* SETUP */
 	require( "./setup.php" );
@@ -68,7 +68,7 @@ $sqloo->beginTransaction();
 	//normalize the house, and person table.
 	$query2 = $sqloo->newQuery();
 	$house_table_ref = $query2->table( "house" );
-	$person_table_ref = $house_table_ref->joinParent( "person", "owner", Sqloo::JOIN_LEFT );
+	$person_table_ref = $house_table_ref->joinParent( "person", "owner", Sqloo_Query::JOIN_LEFT );
 	$query2->column = array(
 		"house_address" => $house_table_ref->address,
 		"owner_fullname" => "$person_table_ref->fname || ' ' || $person_table_ref->lname"

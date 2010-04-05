@@ -74,17 +74,17 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 			} else if( $table_array["action"] === "add" ) { //create table
 				$query_string = "CREATE TABLE \"".$table_name."\" (\n";
 				foreach( $table_array["column"] as $column_name => $column_array ) {
-					$query_string .= "\"".$column_name."\" ".$this->_sqloo->getTypeString( $column_array["info"][Sqloo::COLUMN_DATA_TYPE] );
-					if( $column_array["info"][Sqloo::COLUMN_AUTO_INCREMENT] ) {
+					$query_string .= "\"".$column_name."\" ".$this->_sqloo_connection->getTypeString( $column_array["info"][Sqloo_Schema::COLUMN_DATA_TYPE] );
+					if( $column_array["info"][Sqloo_Schema::COLUMN_AUTO_INCREMENT] ) {
 						$sequence_name = $table_name."_".$column_name."_seq";
 						$query_array[] = "CREATE SEQUENCE \"".$sequence_name."\"";
 						$query_string .= " DEFAULT nextval('".$sequence_name."')";	
 					} else {
-						if( $column_array["info"][Sqloo::COLUMN_DEFAULT_VALUE] !== NULL )
-							$query_string .= " DEFAULT ".$this->_sqloo->quote( $column_array["info"][Sqloo::COLUMN_DEFAULT_VALUE] );					
+						if( $column_array["info"][Sqloo_Schema::COLUMN_DEFAULT_VALUE] !== NULL )
+							$query_string .= " DEFAULT ".$this->_sqloo_connection->quote( $column_array["info"][Sqloo_Schema::COLUMN_DEFAULT_VALUE] );					
 					}
-					$query_string .= ( $column_array["info"][Sqloo::COLUMN_ALLOW_NULL] ) ? " NULL" : " NOT NULL";
-					if( $column_array["info"][Sqloo::COLUMN_PRIMARY_KEY] )
+					$query_string .= ( $column_array["info"][Sqloo_Schema::COLUMN_ALLOW_NULL] ) ? " NULL" : " NOT NULL";
+					if( $column_array["info"][Sqloo_Schema::COLUMN_PRIMARY_KEY] )
 						$query_string .= " PRIMARY KEY";
 					$query_string .= ",\n";
 				}
@@ -100,9 +100,9 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 				foreach( $table_array["index"] as $index_name => $index_array ) {
 					if( $index_array["action"] === "add" ) {
 						$query_string = "CREATE ";
-						if( $index_array["info"][Sqloo::INDEX_UNIQUE] )
+						if( $index_array["info"][Sqloo_Schema::INDEX_UNIQUE] )
 							$query_string .= "UNIQUE ";
-						$query_string .= "INDEX \"".$index_name."\" ON \"".$table_name."\" ( \"".implode( "\",\"", $index_array["info"][Sqloo::INDEX_COLUMN_ARRAY] )."\" )";
+						$query_string .= "INDEX \"".$index_name."\" ON \"".$table_name."\" ( \"".implode( "\",\"", $index_array["info"][Sqloo_Schema::INDEX_COLUMN_ARRAY] )."\" )";
 						$query_array[] = $query_string;
 					} else if( $index_array["action"] === "drop" ) {
 						//we already did this
@@ -132,7 +132,7 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 			}
 		}				
 		foreach( $query_array as $query_string ) {
-			$this->_sqloo->query( $query_string );
+			$this->_sqloo_connection->query( $query_string );
 		}
 	}
 	
@@ -145,7 +145,7 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 			"SELECT table_name\n".
 			"FROM information_schema.tables\n".
 			"WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema')";
-		$query_object = $this->_sqloo->query( $query_string );
+		$query_object = $this->_sqloo_connection->query( $query_string );
 		while( $row = $query_object->fetch( PDO::FETCH_ASSOC ) ) {
 			$table_array[] = end($row);			
 		}
@@ -162,18 +162,18 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 				"FROM information_schema.columns\n".
 				"WHERE table_name = '".$table_name."'\n".
 				"ORDER BY ordinal_position";
-			$query_resource = $this->_sqloo->query( $query_string );
+			$query_resource = $this->_sqloo_connection->query( $query_string );
 			while( $row = $query_resource->fetch( PDO::FETCH_ASSOC ) ) {
 				$column_data[ $row["column_name"] ] = array(
-					Sqloo::COLUMN_DATA_TYPE => $row["data_type"],
-					Sqloo::COLUMN_ALLOW_NULL => ( $row["is_nullable"] === "YES" ),
-					Sqloo::COLUMN_DEFAULT_VALUE => $row["column_default"],
-					Sqloo::COLUMN_PRIMARY_KEY => FALSE, //we'll change that later
-					Sqloo::COLUMN_AUTO_INCREMENT => FALSE //again, we'll set it later
+					Sqloo_Schema::COLUMN_DATA_TYPE => $row["data_type"],
+					Sqloo_Schema::COLUMN_ALLOW_NULL => ( $row["is_nullable"] === "YES" ),
+					Sqloo_Schema::COLUMN_DEFAULT_VALUE => $row["column_default"],
+					Sqloo_Schema::COLUMN_PRIMARY_KEY => FALSE, //we'll change that later
+					Sqloo_Schema::COLUMN_AUTO_INCREMENT => FALSE //again, we'll set it later
 				);
 				if( preg_match( "/nextval/i", $row["column_default"] ) ) {
-					$column_data[$row["column_name"]][Sqloo::COLUMN_AUTO_INCREMENT] = TRUE;
-					$column_data[$row["column_name"]][Sqloo::COLUMN_DEFAULT_VALUE] = NULL;
+					$column_data[$row["column_name"]][Sqloo_Schema::COLUMN_AUTO_INCREMENT] = TRUE;
+					$column_data[$row["column_name"]][Sqloo_Schema::COLUMN_DEFAULT_VALUE] = NULL;
 				}
 			}
 			
@@ -184,7 +184,7 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 				"JOIN pg_class as index_class ON index_class.oid = index.indexrelid\n".
 				"WHERE table_class.relname = '".$table_name."'\n".
 				"AND index.indisprimary = 't'";
-			$query_resource_2 = $this->_sqloo->query( $query_string_2 );
+			$query_resource_2 = $this->_sqloo_connection->query( $query_string_2 );
 			$row_2 = $query_resource_2->fetch( PDO::FETCH_ASSOC );
 			if( $row_2 ) {
 				$indkey_array = explode( " ", $row_2["indkey_string"] );
@@ -195,10 +195,10 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 						"JOIN pg_class as table_class ON column_class.attrelid = table_class.oid\n".
 						"WHERE table_class.relname = '".$table_name."'".
 						"AND column_class.attnum = ".((int)$indkey);
-					$query_resource_3 = $this->_sqloo->query( $query_string_3 );
+					$query_resource_3 = $this->_sqloo_connection->query( $query_string_3 );
 					$row_3 = $query_resource_3->fetch( PDO::FETCH_ASSOC );
 					if( $row_3 && array_key_exists( $row_3["attname"], $column_data ) )
-						$column_data[ $row_3["attname"] ][Sqloo::COLUMN_PRIMARY_KEY] = TRUE;
+						$column_data[ $row_3["attname"] ][Sqloo_Schema::COLUMN_PRIMARY_KEY] = TRUE;
 					else {
 						throw new Sqloo_Exception( "For some reason the key failed to resolve", Sqloo_Exception::BAD_INPUT );				
 					}
@@ -223,7 +223,7 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 				"JOIN pg_class as index_class ON index_class.oid = index.indexrelid\n".
 				"WHERE table_class.relname = '".$table_name."'\n".
 				"AND index.indisprimary = 'f'";
-			$query_resource = $this->_sqloo->query( $query_string );
+			$query_resource = $this->_sqloo_connection->query( $query_string );
 			while( $row = $query_resource->fetch( PDO::FETCH_ASSOC ) ) {
 				$key_name = $row["index_name"];
 				$is_unique = $row["is_unique"];
@@ -236,7 +236,7 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 						"JOIN pg_class as table_class ON column_class.attrelid = table_class.oid\n".
 						"WHERE table_class.relname = '".$table_name."'".
 						"AND column_class.attnum = ".((int)$indkey);
-					$query_resource_2 = $this->_sqloo->query( $query_string_2 );
+					$query_resource_2 = $this->_sqloo_connection->query( $query_string_2 );
 					$row_2 = $query_resource_2->fetch( PDO::FETCH_ASSOC );
 					if( $row_2 && array_key_exists( "attname", $row_2 ) )
 						$column_array[] = $row_2["attname"];
@@ -245,8 +245,8 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 						throw new Sqloo_Exception( "For some reason the key failed to resolve", Sqloo_Exception::BAD_INPUT );				
 					}
 				}
-				$index_data[ $key_name ][ Sqloo::INDEX_COLUMN_ARRAY ] = $column_array;
-				$index_data[ $key_name ][ Sqloo::INDEX_UNIQUE ] = $is_unique;
+				$index_data[ $key_name ][ Sqloo_Schema::INDEX_COLUMN_ARRAY ] = $column_array;
+				$index_data[ $key_name ][ Sqloo_Schema::INDEX_UNIQUE ] = $is_unique;
 			}
 			
 			$index_data_array[$table_name] = $index_data;
@@ -256,7 +256,7 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 	
 	protected function _getForeignKeyDataArray()
 	{
-		$lookup_array = array( "a" => Sqloo::ACTION_NO_ACTION, "r" => Sqloo::ACTION_RESTRICT, "c" => Sqloo::ACTION_CASCADE, "n" => Sqloo::ACTION_SET_NULL );
+		$lookup_array = array( "a" => Sqloo_Schema::ACTION_NO_ACTION, "r" => Sqloo_Schema::ACTION_RESTRICT, "c" => Sqloo_Schema::ACTION_CASCADE, "n" => Sqloo_Schema::ACTION_SET_NULL );
 		
 		$foreign_key_data_array = array();
 		$query_string = 
@@ -268,13 +268,13 @@ class Sqloo_Schema_Postgres extends Sqloo_Schema
 			"LEFT JOIN pg_attribute a2 ON a2.attnum = ANY( c.confkey ) AND c.confrelid = a2.attrelid\n".
 			"WHERE c.contype = 'f'\n".
 			"AND c.confrelid > 0";
-		$query_resource = $this->_sqloo->query( $query_string );
+		$query_resource = $this->_sqloo_connection->query( $query_string );
 		while( $row = $query_resource->fetch( PDO::FETCH_ASSOC ) ) {
 			$foreign_key_data_array[ $row["table_name"] ][ $row["column_name"] ][ $row["constraint_name"] ] = array( 
 				"target_table_name" => $row["referenced_table_name"],
 				"target_column_name" => $row["referenced_column_name"],
-				Sqloo::PARENT_ON_DELETE => $lookup_array[ $row["on_delete"] ],
-				Sqloo::PARENT_ON_UPDATE => $lookup_array[ $row["on_update"] ]
+				Sqloo_Schema::PARENT_ON_DELETE => $lookup_array[ $row["on_delete"] ],
+				Sqloo_Schema::PARENT_ON_UPDATE => $lookup_array[ $row["on_update"] ]
 			);
 		}
 		return $foreign_key_data_array;

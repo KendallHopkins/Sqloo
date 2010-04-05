@@ -31,44 +31,79 @@ require_once( "Datatypes.php" );
 abstract class Sqloo_Schema
 {
 	
+	//Column Attributes
+	const COLUMN_DATA_TYPE = "column_data_type"; //string
+	const COLUMN_ALLOW_NULL = "allow_null"; //bool
+	const COLUMN_DEFAULT_VALUE = "default_value"; //mixed, (string, int, float, NULL)
+	const COLUMN_PRIMARY_KEY = "column_primary_key"; //bool
+	const COLUMN_AUTO_INCREMENT = "column_auto_increment"; //bool
+
+	//Parent Attributes
+	const PARENT_TABLE_NAME = "parent_table_name"; //string
+	const PARENT_ALLOW_NULL = "allow_null"; //bool, alias to COLUMN_ALLOW_NULL
+	const PARENT_DEFAULT_VALUE = "default_value"; //mixed, (string, int, float, NULL), alias to COLUMN_DEFAULT_VALUE
+	const PARENT_ON_DELETE = "parent_on_delete"; //action - see below
+	const PARENT_ON_UPDATE = "parent_on_update"; //action - see below
+			
+	//Index Attributes
+	const INDEX_COLUMN_ARRAY = "index_column_array"; //array
+	const INDEX_UNIQUE = "index_unique"; //bool
+	
+	//Actions
+	const ACTION_RESTRICT = "RESTRICT";
+	const ACTION_CASCADE = "CASCADE";
+	const ACTION_SET_NULL = "SET NULL";
+	const ACTION_NO_ACTION = "NO ACTION";
+	
+	//Datatypes
+	const DATATYPE_BOOLEAN = 1;
+	const DATATYPE_INTEGER = 2;
+	const DATATYPE_FLOAT = 3;
+	const DATATYPE_STRING = 4;
+	const DATATYPE_FILE = 5;
+	const DATATYPE_TIME = 6;
+	const DATATYPE_OVERRIDE = 7;
+	
 	private $_column_default_attributes = array(
-		Sqloo::COLUMN_DATA_TYPE => array(
-			"type" => Sqloo::DATATYPE_INTEGER,
+		self::COLUMN_DATA_TYPE => array(
+			"type" => self::DATATYPE_INTEGER,
 			"size" => 4
 		),
-		Sqloo::COLUMN_ALLOW_NULL => FALSE,
-		Sqloo::COLUMN_DEFAULT_VALUE => NULL,
-		Sqloo::COLUMN_PRIMARY_KEY => FALSE,
-		Sqloo::COLUMN_AUTO_INCREMENT => FALSE
+		self::COLUMN_ALLOW_NULL => FALSE,
+		self::COLUMN_DEFAULT_VALUE => NULL,
+		self::COLUMN_PRIMARY_KEY => FALSE,
+		self::COLUMN_AUTO_INCREMENT => FALSE
 	);
 		
 	private $_id_column_attributes = array(
-		Sqloo::COLUMN_PRIMARY_KEY => TRUE,
-		Sqloo::COLUMN_AUTO_INCREMENT => TRUE
+		self::COLUMN_PRIMARY_KEY => TRUE,
+		self::COLUMN_AUTO_INCREMENT => TRUE
 	);
 	
 	private $_index_default_attributes = array(
-		Sqloo::INDEX_UNIQUE => FALSE
+		self::INDEX_UNIQUE => FALSE
 	);
 	
 	private $_foreign_key_default_attributes = array(
-		Sqloo::PARENT_ON_DELETE => Sqloo::ACTION_CASCADE,
-		Sqloo::PARENT_ON_UPDATE => Sqloo::ACTION_CASCADE
+		self::PARENT_ON_DELETE => self::ACTION_RESTRICT,
+		self::PARENT_ON_UPDATE => self::ACTION_RESTRICT
 	);
 	
-	protected $_sqloo;
+	protected $_sqloo_connection;
+	protected $_sqloo_database;
 	protected $_database_configuration;
 	protected $_alter_table_data;
 	
-	public function __construct( $sqloo )
+	public function __construct( Sqloo_Connection $sqloo_connection, Sqloo_Database $sqloo_database )
 	{
-		$this->_sqloo = $sqloo;
+		$this->_sqloo_connection = $sqloo_connection;
+		$this->_sqloo_database = $sqloo_database;
 	}
 	
 	public function checkSchema()
 	{
-		$this->_database_configuration = $this->_sqloo->_getDatabaseConfiguration( Sqloo::QUERY_MASTER );
-		$all_tables = $this->_sqloo->_getAllTables();
+		$this->_database_configuration = $this->_sqloo_connection->_getDatabaseConfiguration( Sqloo_Connection::QUERY_MASTER );
+		$all_tables = $this->_sqloo_database->_getAllTables();
 		
 		//reset alter array
 		$this->_alter_table_data = array();
@@ -93,12 +128,12 @@ abstract class Sqloo_Schema
 		);
 
 		//correct the tables
-		$this->_sqloo->beginTransaction();
+		$this->_sqloo_connection->beginTransaction();
 		try {
 			$log_string = $this->_executeAlterQuery();		
-			$this->_sqloo->commitTransaction();
+			$this->_sqloo_connection->commitTransaction();
 		} catch( Exception $e ) {
-			$this->_sqloo->rollbackTransaction();
+			$this->_sqloo_connection->rollbackTransaction();
 			$log_string = "Schema Change Failed, Rolling back. Message:".$e->getMessage();
 		}
 		
@@ -145,8 +180,8 @@ abstract class Sqloo_Schema
 			}
 			foreach( $table_class->parent as $join_column_name => $parent_attribute_array ) {
 				$target_index_data_array[ $table_name ][] = array(
-					Sqloo::INDEX_COLUMN_ARRAY => array( $join_column_name ),
-					Sqloo::INDEX_UNIQUE => FALSE
+					self::INDEX_COLUMN_ARRAY => array( $join_column_name ),
+					self::INDEX_UNIQUE => FALSE
 				);		
 			}
 		}
@@ -158,12 +193,13 @@ abstract class Sqloo_Schema
 		$target_foreign_key_data_array = array();
 		foreach( $all_tables as $table_name => $table_class ) {
 			foreach( $table_class->parent as $join_column_name => $parent_attribute_array ) {
+				$parent_attribute_array += $this->_foreign_key_default_attributes;
 				$target_foreign_key_data_array[ $table_name ][ $join_column_name ] = array(
-					"target_table_name" => $parent_attribute_array[Sqloo::PARENT_TABLE_NAME],
+					"target_table_name" => $parent_attribute_array[self::PARENT_TABLE_NAME],
 					"target_column_name" => "id",
-					Sqloo::PARENT_ON_DELETE => $parent_attribute_array[Sqloo::PARENT_ON_DELETE],
-					Sqloo::PARENT_ON_UPDATE => $parent_attribute_array[Sqloo::PARENT_ON_UPDATE]
-				) + $this->_foreign_key_default_attributes;
+					self::PARENT_ON_DELETE => $parent_attribute_array[self::PARENT_ON_DELETE],
+					self::PARENT_ON_UPDATE => $parent_attribute_array[self::PARENT_ON_UPDATE]
+				);
 			}
 		}
 		return $target_foreign_key_data_array;
@@ -180,8 +216,8 @@ abstract class Sqloo_Schema
 				$key_found = FALSE;
 				if( array_key_exists( $table_name, $foreign_key_data_array ) && array_key_exists( $column_name, $foreign_key_data_array[$table_name] ) ) {
 					foreach( $foreign_key_data_array[$table_name][$column_name] as $foreign_key_name => $foreign_key_attributes_array ) {
-						if( ( $foreign_key_attributes_array[Sqloo::PARENT_ON_DELETE] === $foreign_key_attributes_array[Sqloo::PARENT_ON_DELETE] ) &&
-							( $foreign_key_attributes_array[Sqloo::PARENT_ON_UPDATE] === $foreign_key_attributes_array[Sqloo::PARENT_ON_UPDATE] ) &&
+						if( ( $foreign_key_attributes_array[self::PARENT_ON_DELETE] === $foreign_key_attributes_array[self::PARENT_ON_DELETE] ) &&
+							( $foreign_key_attributes_array[self::PARENT_ON_UPDATE] === $foreign_key_attributes_array[self::PARENT_ON_UPDATE] ) &&
 							( $foreign_key_attributes_array["target_table_name"] === $foreign_key_attributes_array["target_table_name"] ) &&
 							( $foreign_key_attributes_array["target_column_name"] === $foreign_key_attributes_array["target_column_name"] )
 						) {
@@ -215,8 +251,8 @@ abstract class Sqloo_Schema
 				$index_found = FALSE;
 				if( array_key_exists( $table_name, $index_data_array ) ) {
 					foreach( $index_data_array[$table_name] as $index_name => $index_attribute_array ) {
-						if( ! ( count( array_diff_assoc( $index_attribute_array[Sqloo::INDEX_COLUMN_ARRAY], $target_index_attribute_array[Sqloo::INDEX_COLUMN_ARRAY] ) ) ) &&
-							( $index_attribute_array[Sqloo::INDEX_UNIQUE] === $target_index_attribute_array[Sqloo::INDEX_UNIQUE] )
+						if( ! ( count( array_diff_assoc( $index_attribute_array[self::INDEX_COLUMN_ARRAY], $target_index_attribute_array[self::INDEX_COLUMN_ARRAY] ) ) ) &&
+							( $index_attribute_array[self::INDEX_UNIQUE] === $target_index_attribute_array[self::INDEX_UNIQUE] )
 						) {
 							//we found the index
 							$index_found = TRUE;
@@ -254,14 +290,14 @@ abstract class Sqloo_Schema
 					$column_attribute_array = $column_data_array[$table_name][$column_name];
 					//I HATE MYSQL, IT REFUSES TO HAVE NO DEFAULT VALUE ON TIMESTAMPS
 					//INSTEAD IT ASSIGN IT A DEFAULT OF "CURRENT_TIMESTAMP" or "0000-00-00 00:00:00"!
-					if( in_array( $column_attribute_array[Sqloo::COLUMN_DEFAULT_VALUE], array( "0000-00-00 00:00:00", "CURRENT_TIMESTAMP" ) ) ) {
-						$column_attribute_array[Sqloo::COLUMN_DEFAULT_VALUE] = NULL;
+					if( in_array( $column_attribute_array[self::COLUMN_DEFAULT_VALUE], array( "0000-00-00 00:00:00", "CURRENT_TIMESTAMP" ) ) ) {
+						$column_attribute_array[self::COLUMN_DEFAULT_VALUE] = NULL;
 					}
-					if( ( $this->_sqloo->getTypeString( $target_column_attribute_array[Sqloo::COLUMN_DATA_TYPE] ) === $column_attribute_array[Sqloo::COLUMN_DATA_TYPE] ) &&
-						( $target_column_attribute_array[Sqloo::COLUMN_ALLOW_NULL] === $column_attribute_array[Sqloo::COLUMN_ALLOW_NULL] ) &&
-						( $target_column_attribute_array[Sqloo::COLUMN_DEFAULT_VALUE] == $column_attribute_array[Sqloo::COLUMN_DEFAULT_VALUE] ) && /* i hate doing a non-strict compare */
-						( $target_column_attribute_array[Sqloo::COLUMN_PRIMARY_KEY] === $column_attribute_array[Sqloo::COLUMN_PRIMARY_KEY] ) &&
-						( $target_column_attribute_array[Sqloo::COLUMN_AUTO_INCREMENT] === $column_attribute_array[Sqloo::COLUMN_AUTO_INCREMENT] )
+					if( ( $this->_sqloo_connection->getTypeString( $target_column_attribute_array[self::COLUMN_DATA_TYPE] ) === $column_attribute_array[self::COLUMN_DATA_TYPE] ) &&
+						( $target_column_attribute_array[self::COLUMN_ALLOW_NULL] === $column_attribute_array[self::COLUMN_ALLOW_NULL] ) &&
+						( $target_column_attribute_array[self::COLUMN_DEFAULT_VALUE] == $column_attribute_array[self::COLUMN_DEFAULT_VALUE] ) && /* i hate doing a non-strict compare */
+						( $target_column_attribute_array[self::COLUMN_PRIMARY_KEY] === $column_attribute_array[self::COLUMN_PRIMARY_KEY] ) &&
+						( $target_column_attribute_array[self::COLUMN_AUTO_INCREMENT] === $column_attribute_array[self::COLUMN_AUTO_INCREMENT] )
 					) {
 						$column_matches = TRUE;
 						unset( $column_data_array[$table_name][$column_name] );
