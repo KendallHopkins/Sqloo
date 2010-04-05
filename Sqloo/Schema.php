@@ -103,7 +103,7 @@ abstract class Sqloo_Schema
 	public function checkSchema()
 	{
 		$this->_database_configuration = $this->_sqloo_connection->_getDatabaseConfiguration( Sqloo_Connection::QUERY_MASTER );
-		$all_tables = $this->_sqloo_database->_getAllTables();
+		$all_tables = $this->_sqloo_database->getAllTables();
 		
 		//reset alter array
 		$this->_alter_table_data = array();

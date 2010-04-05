@@ -102,24 +102,14 @@ class Sqloo_Database
 		return $schema->checkSchema();
 	}
 
-	public function _getTable( $table_name )
+	public function getTable( $table_name )
 	{
 		if( ! array_key_exists( $table_name, $this->_table_array ) )
 			$this->_loadTable( $table_name );
 		return $this->_table_array[$table_name];
 	}
 	
-	private function _loadTable( $table_name )
-	{
-		if( ! array_key_exists( $table_name, $this->_table_array ) ) {
-			if( $this->_load_table_function && is_callable( $this->_load_table_function ) )
-				call_user_func( $this->_load_table_function, $table_name, $this );
-			if( ! array_key_exists( $table_name, $this->_table_array ) )
-				throw new Sqloo_Exception( "could not load table: ".$table_name, Sqloo_Exception::BAD_INPUT );
-		}
-	}
-	
-	public function _getAllTables()
+	public function getAllTables()
 	{
 		static $all_tables_loaded = FALSE;
 		if( ! $all_tables_loaded && ! is_null( $this->_list_all_tables_function ) ) {
@@ -133,6 +123,15 @@ class Sqloo_Database
 		}
 		return $this->_table_array;
 	}
-
+	
+	private function _loadTable( $table_name )
+	{
+		if( ! array_key_exists( $table_name, $this->_table_array ) ) {
+			if( $this->_load_table_function && is_callable( $this->_load_table_function ) )
+				call_user_func( $this->_load_table_function, $table_name, $this );
+			if( ! array_key_exists( $table_name, $this->_table_array ) )
+				throw new Sqloo_Exception( "could not load table: ".$table_name, Sqloo_Exception::BAD_INPUT );
+		}
+	}
 
 }
