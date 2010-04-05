@@ -24,7 +24,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-class Sqloo_Table
+class Sqloo_Database_Table
 {
 	
 	public $name;

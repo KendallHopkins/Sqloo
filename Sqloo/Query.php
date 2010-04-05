@@ -111,8 +111,8 @@ class Sqloo_Query implements Iterator
 	*
 	*	Only done once
 	*
-	*	@param	string		The root table name
-	*	@return	Sqloo_Table	A Sqloo_Table object
+	*	@param	string				The root table name
+	*	@return	Sqloo_Query_Table	A Sqloo_Query_Table object
 	*/
 	
 	public function table( $table_name )

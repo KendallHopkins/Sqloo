@@ -26,6 +26,7 @@ THE SOFTWARE.
 
 require_once( "Connection.php" );
 require_once( "Schema.php" );
+require_once( "Database/Table.php" );
 
 class Sqloo_Database
 {
@@ -41,23 +42,23 @@ class Sqloo_Database
 	}
 	
 		/**
-	*	Make a new Sqloo_Table Object and return it.
+	*	Make a new Sqloo_Database_Table Object and return it.
 	*	
-	*	@param	string		New table name
-	*	@return	Sqloo_Table	Empty Sqloo_Table object
+	*	@param	string					New table name
+	*	@return	Sqloo_Database_Table	Empty Sqloo_Database_Table object
 	*/
 	
 	public function newTable( $table_name )
 	{
-		return $this->_table_array[ $table_name ] = new Sqloo_Table( $table_name );
+		return $this->_table_array[ $table_name ] = new Sqloo_Database_Table( $table_name );
 	}
 	
 	/**
-	*	Make a new Sqloo_Table Object, setup the parents and return it.
+	*	Make a new Sqloo_Database_Table Object, setup the parents and return it.
 	*	
-	*	@param	Sqloo_Table	Parent table 1
-	*	@param	Sqloo_Table	Parent table 2
-	*	@return	Sqloo_Table	N:M Sqloo_Table object, used for NMJoins
+	*	@param	Sqloo_Database_Table	Parent table 1
+	*	@param	Sqloo_Database_Table	Parent table 2
+	*	@return	Sqloo_Database_Table	N:M Sqloo_Database_Table object, used for NMJoins
 	*/
 	
 	public function newNMTable( $sqloo_table_name_1, $sqloo_table_name_2 )

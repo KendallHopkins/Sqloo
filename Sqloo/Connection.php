@@ -25,7 +25,6 @@ THE SOFTWARE.
 */
 
 require_once( "Query.php" );
-require_once( "Table.php" );
 require_once( "CacheInterface.php" );
 require_once( "Exception.php" );
 require_once( "Datatypes.php" );
