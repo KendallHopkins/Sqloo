@@ -1,6 +1,6 @@
 <?php
 
-$person = $sqloo->newTable( "person" );
+$person = $sqloo_database->newTable( "person" );
 $person->column = array(
 	"fname" => array(
 		Sqloo_Schema::COLUMN_DATA_TYPE => array(

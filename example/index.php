@@ -7,10 +7,10 @@
 
 //Start outer transaction
 
-$sqloo->beginTransaction();
+$sqloo_connection->beginTransaction();
 
 //Simple insert
-	$person_id = $sqloo->insert(
+	$person_id = $sqloo_connection->insert(
 		"person",
 		array( "fname" => "Kendall", "lname" => "Hopkins" )
 	);
@@ -22,12 +22,12 @@ $sqloo->beginTransaction();
 		array( "address" => "Dir%ty'\" str^()\\ng", "owner" => NULL )
 	);
 	foreach( $insert_data_array as &$insert_data ) {
-		 $inserted_id = $sqloo->insert( "house", $insert_data );
+		 $inserted_id = $sqloo_connection->insert( "house", $insert_data );
 		 $insert_data["id"] = $inserted_id;
 	}
 
 //check our data is ok
-	$query0 = $sqloo->newQuery();
+	$query0 = $sqloo_connection->newQuery();
 	$house_table_ref = $query0->table( "house" );
 	$query0->column = array(
 		"id" => $house_table_ref->id,
@@ -45,7 +45,7 @@ $sqloo->beginTransaction();
 
 //simple query example
 	//Find fname, lname by id
-	$query1 = $sqloo->newQuery();
+	$query1 = $sqloo_connection->newQuery();
 	$person_table_ref = $query1->table( "person" );
 	$query1->column = array(
 		"fname" => $person_table_ref->fname,
@@ -57,24 +57,24 @@ $sqloo->beginTransaction();
 	$result_array1 = $query1->fetchArray();
 	print_r( $result_array1 ); //do something with result_array1
 
-$sqloo->beginTransaction();
-$sqloo->beginTransaction();
+$sqloo_connection->beginTransaction();
+$sqloo_connection->beginTransaction();
 
 //join query example
 	//normalize the house, and person table.
-	$query2 = $sqloo->newQuery();
+	$query2 = $sqloo_connection->newQuery();
 	$house_table_ref = $query2->table( "house" );
 	$person_table_ref = $house_table_ref->joinParent( "person", "owner", Sqloo_Query::JOIN_LEFT );
 	$query2->column = array(
 		"house_address" => $house_table_ref->address,
 		"owner_fullname" => "$person_table_ref->fname || ' ' || $person_table_ref->lname"
 	);
-	$sqloo->insertQuery( "house_normalized", $query2 ); //insert query directly into database
+	$sqloo_connection->insertQuery( "house_normalized", $query2 ); //insert query directly into database
 
-$sqloo->commitTransaction();
-$sqloo->commitTransaction();
+$sqloo_connection->commitTransaction();
+$sqloo_connection->commitTransaction();
 
-$sqloo->rollbackTransaction(); //rollback outer transaction
+$sqloo_connection->rollbackTransaction(); //rollback outer transaction
 
 
 ?>

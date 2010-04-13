@@ -51,7 +51,7 @@
 	$cache_class = new CacheLocal();
 	
 	//We init Sqloo with functions to get database configuration and load tables dynamically
-	$sqloo = new Sqloo_Connection( "master_pool", NULL, $cache_class );
+	$sqloo_connection = new Sqloo_Connection( "master_pool", NULL, $cache_class );
 
 /* DATABASE SETUP */
 	//simple load table function
@@ -66,11 +66,11 @@
 		return array( "house", "person", "house-person", "house_normalized" );
 	}
 
-	$database = new Sqloo_Database( "load_table", "list_all_tables" );
+	$sqloo_database = new Sqloo_Database( "load_table", "list_all_tables" );
 	
 /* CHECK SCHEMA */
 	//This is ONLY required to do when the schema is updated
 	//Running "checkSchema" is costly and should only be done when needed
-	print $database->checkSchema( $sqloo );
+	print $sqloo_database->checkSchema( $sqloo_connection );
 
 ?>
