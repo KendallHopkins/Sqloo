@@ -347,11 +347,11 @@ class Sqloo_Query implements Iterator
 	*	@return	string	parameter reference
 	*/
 	
-	public function parameter( $parameter )
+	public function parameter( &$parameter )
 	{
 		static $parameter_index = 0;
 		$key = "_p_".$parameter_index++;
-		$this->parameter_array[$key] = $parameter;
+		$this->parameter_array[$key] &= $parameter;
 		return ":".$key;
 	}
 	
@@ -359,7 +359,7 @@ class Sqloo_Query implements Iterator
 	*	Shortcut for ->parameter( .. );
 	*/
 	
-	public function p( $parameter )
+	public function p( &$parameter )
 	{
 		return $this->parameter( $parameter );
 	}
