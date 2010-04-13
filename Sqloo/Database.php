@@ -41,7 +41,7 @@ class Sqloo_Database
 		$this->_list_all_tables_function = $list_all_tables_function;
 	}
 	
-		/**
+	/**
 	*	Make a new Sqloo_Database_Table Object and return it.
 	*	
 	*	@param	string					New table name

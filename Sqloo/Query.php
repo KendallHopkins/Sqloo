@@ -75,7 +75,7 @@ class Sqloo_Query implements Iterator
 	*	@param	array	If this query is a union query this is an array of Sqloo_Query objects
 	*/
 	
-	public function __construct( $sqloo_connection, $union_array = NULL )
+	public function __construct( Sqloo_Connection $sqloo_connection, $union_array = NULL )
 	{
 		$this->_sqloo_connection = $sqloo_connection;
 		$this->_union_array = $union_array;
