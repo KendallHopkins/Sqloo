@@ -8,6 +8,12 @@ $house->column = array(
 			"size" => 128
 		),
 		Sqloo_Schema::COLUMN_ALLOW_NULL => FALSE
+	),
+	"fireplace_on" => array(
+		Sqloo_Schema::COLUMN_DATA_TYPE => array(
+			"type" => Sqloo_Schema::DATATYPE_BOOLEAN
+		),
+		Sqloo_Schema::COLUMN_DEFAULT_VALUE => FALSE
 	)
 );
 $house->parent = array(

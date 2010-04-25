@@ -55,7 +55,7 @@
 
 /* DATABASE SETUP */
 	//simple load table function
-	function load_table( $table_name, $sqloo )
+	function load_table( $table_name, $sqloo_database )
 	{
 		require( "db/".$table_name.".php" );
 	}
@@ -63,7 +63,7 @@
 	//simple list table function
 	function list_all_tables()
 	{
-		return array( "house", "person", "house-person", "house_normalized" );
+		return array( "house", "person", "house-person", "item" );
 	}
 
 	$sqloo_database = new Sqloo_Database( "load_table", "list_all_tables" );
