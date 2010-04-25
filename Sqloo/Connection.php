@@ -366,11 +366,17 @@ class Sqloo_Connection
 	*
 	*	@param	string	Name of the table
 	*	@param	array	Array with the attributes to be modified, IE array( "column_name1" => "value1", "column_name2" => "value2" )
-	*	@param	mixed	Array of positive int values that are the id's for the rows you want to update or where string
+	*	@param	array	Array of positive int values that are the id's for the rows you want to update
 	*/
 	
-	public function update( $table_name, array $update_array, $id_array_or_where_string )
+	public function update( $table_name, array $update_array, array $id_array )
 	{
+		if( ! $update_array )
+			throw new Sqloo_Exception( "update_array of 0 size", Sqloo_Exception::BAD_INPUT );
+			
+		if( ! $id_array )
+			throw new Sqloo_Exception( "update_array of 0 size", Sqloo_Exception::BAD_INPUT );
+		
 		/* create update string */
 		$update_string = 
 			"UPDATE \"".$table_name."\"\n".
@@ -381,19 +387,40 @@ class Sqloo_Connection
 			$update_string .= "\"".$key."\"=?,";
 		
 		$update_string = substr( $update_string, 0, -1 )."\n";
-		if( is_array( $id_array_or_where_string ) ) {
-			$id_array = $id_array_or_where_string;
-			$id_array_count = count( $id_array );
-			if( ! $id_array_count ) throw new Sqloo_Exception( "id_array of 0 size", Sqloo_Exception::BAD_INPUT );
-			$update_string .= "WHERE id IN (".implode( ",", array_fill( 0, count( $id_array ), "?" ) ).")\n";
-			$this->query( $update_string, array_merge( array_values( $update_array ), array_values( $id_array ) ) );
-		} else if( is_string( $id_array_or_where_string ) ) {
-			$where_string = $id_array_or_where_string;
-			$update_string .= "WHERE ".$where_string;
-			$this->query( $update_string, array_values( $update_array ) );
-		} else {
-			throw new Sqloo_Exception( "bad input type", Sqloo_Exception::BAD_INPUT );
-		}
+		$id_array_count = count( $id_array );
+		$update_string .= "WHERE id IN (".implode( ",", array_fill( 0, count( $id_array ), "?" ) ).")\n";
+		$this->query( $update_string, array_merge( array_values( $update_array ), array_values( $id_array ) ) );
+	}
+	
+	/**
+	*	Update a list of rows with new values
+	*
+	*	This function will set the column "modified" to the current date if they exist in the table
+	*
+	*	@param	string	Name of the table
+	*	@param	array	Array with the attributes to be modified, IE array( "column_name1" => "value1", "column_name2" => "value2" )
+	*	@param	string	Where string
+	*/
+	
+	public function updateWhere( $table_name, array $update_array, $where_string )
+	{
+		if( ! $update_array )
+			throw new Sqloo_Exception( "update_array of 0 size", Sqloo_Exception::BAD_INPUT );
+
+		/* create update string */
+		$update_string = 
+			"UPDATE \"".$table_name."\"\n".
+			"SET ";
+		
+		//add other fields		
+		foreach( array_keys( $update_array ) as $key )
+			$update_string .= "\"".$key."\"=?,";
+		
+		$update_string =
+			substr( $update_string, 0, -1 )."\n".
+			"WHERE ".$where_string;
+		
+		$this->query( $update_string, array_values( $update_array ) );
 	}
 	
 	/**
