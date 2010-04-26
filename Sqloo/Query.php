@@ -28,7 +28,6 @@ require_once( "Query/Table.php" );
 
 class Sqloo_Query implements Iterator
 {
-	
 	//Order Types
 	const ORDER_ASCENDING = "ASC";
 	const ORDER_DESCENDING = "DESC";
@@ -201,12 +200,25 @@ class Sqloo_Query implements Iterator
 	/**
 	*	Function to order clause
 	*	
-	*	@param string	condition string
+	*	@param string	expression string
+	*	@param string	order type (ORDER_ASCENDING, ORDER_DESCENDING)
 	*/
 	
 	public function order( $expression, $type )
 	{
 		$this->order[$expression] = $type;
+		return $this;
+	}
+	
+	/**
+	*	Function to order clause
+	*	
+	*	@param string	expression string
+	*/
+	
+	public function group( $expression )
+	{
+		$this->group[] = $expression;
 		return $this;
 	}
 	
@@ -218,7 +230,7 @@ class Sqloo_Query implements Iterator
 	
 	public function having( $condition )
 	{
-		$this->where[] = $condition;
+		$this->having[] = $condition;
 		return $this;
 	}
 	
@@ -433,7 +445,9 @@ class Sqloo_Query implements Iterator
 	
 	private function _getSelectString()
 	{
-		$select_string = $this->_query_data["distinct"] ? "SELECT DISTINCT\n" : "SELECT\n";
+		$select_string =
+			"SELECT ".( $this->_query_data["distinct"] ? "DISTINCT" : "ALL" )."\n";
+			
 		if( $this->_query_data["column"])
 			foreach( $this->_query_data["column"] as $output_name => $reference )
 				$select_string .= ( is_null( $reference ) ? "NULL" : $reference )." AS \"".$output_name."\",\n";
@@ -448,8 +462,9 @@ class Sqloo_Query implements Iterator
 		if( ! $this->_root_table_class ) 
 			throw new Sqloo_Exception( "Root table is not set", Sqloo_Exception::BAD_INPUT );
 		
-		$from_string = "FROM ";
-		$from_string .= "\"".$this->_root_table_class->getTableName()."\" AS \"".$this->_root_table_class->getReference()."\"\n";
+		$from_string = 
+			"FROM \"".$this->_root_table_class->getTableName()."\" AS \"".$this->_root_table_class->getReference()."\"\n";
+		
 		foreach( $this->_getJoinData( $this->_root_table_class ) as $join_data ) {
 			switch( $join_data["type"] ) {
 				case Sqloo_Query_Table::JOIN_CHILD:

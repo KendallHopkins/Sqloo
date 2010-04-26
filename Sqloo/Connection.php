@@ -568,6 +568,7 @@ class Sqloo_Connection
 					array(
 						PDO::ATTR_PERSISTENT => TRUE,
 						PDO::ATTR_TIMEOUT => 15,
+						PDO::ATTR_CURSOR => PDO::CURSOR_FWDONLY,
 						PDO::MYSQL_ATTR_INIT_COMMAND => "SET sql_mode='POSTGRESQL'"
 					) 
 				);		
