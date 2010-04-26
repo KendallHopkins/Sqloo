@@ -16,15 +16,11 @@ $sqloo_connection->beginTransaction();
 		$sqloo_connection->insert( "person", $person_attributes );
 	}
 	
-	$item_array = array(
-		array( "name" => "iPhone" ),
-		array( "name" => "iPad" ),
-		array( "name" => "MacBookPro" ),
-		array( "name" => "Steve Jobs Bobble Head" )
-	);
-	foreach( $item_array as $item_attributes ) {
-		$sqloo_connection->insert( "item", $item_attributes );
-	}
+	//INSERT DATA FROM ONE TABLE TO ANOTHER
+	$item_query = $sqloo_connection->newQuery();
+	$item_table_ref = $item_query->table( "person" );
+	$item_query->column( "name", "$item_table_ref->name || ' Bobble Head'" );
+	$sqloo_connection->insertQuery( "item", $item_query );
 	
 	//SETUP ITEM QUERY
 	$item_query = $sqloo_connection->newQuery();
