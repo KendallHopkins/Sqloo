@@ -163,14 +163,14 @@ class Sqloo_Connection
 	}
 	
 	/**
-	*	Returns if sqloo instance is in a transaction.
+	*	Returns the transaction depth of the connection
 	*
-	*	@return bool TRUE if in transaction, FALSE if not
+	*	@return int transaction depth
 	*/
 	
-	public function inTransaction()
+	public function getTransactionDepth()
 	{
-		return (bool)$this->_transaction_depth;
+		return $this->_transaction_depth;
 	}
 	
 	/**

@@ -541,7 +541,7 @@ class Sqloo_Query implements Iterator
 	{
 		$lock_string = "";
 		if( $this->_query_data["lock"] !== self::SELECT_LOCK_NONE ) {
-			if( ! $this->_sqloo_connection->inTransaction() )
+			if( $this->_sqloo_connection->getTransactionDepth() == 0 )
 				throw new Sqloo_Exception( "Locking row with selects requires to be in a transaction", Sqloo_Exception::TRANSACTION_REQUIRED );
 			
 			switch( $this->_sqloo_connection->getDBType() ) {
