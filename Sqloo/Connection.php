@@ -25,6 +25,7 @@ THE SOFTWARE.
 */
 
 require_once( "Query.php" );
+require_once( "Union.php" );
 require_once( "CacheInterface.php" );
 require_once( "Exception.php" );
 require_once( "Datatypes.php" );
@@ -463,7 +464,7 @@ class Sqloo_Connection
 	public function union( array $array_of_queries )
 	{
 		if( ! $array_of_queries ) throw new Sqloo_Exception( "No queries in array", Sqloo_Exception::BAD_INPUT );
-		$query_union = new Sqloo_Query( $this, $array_of_queries );
+		$query_union = new Sqloo_Union( $this, $array_of_queries );
 		$first_query = array_shift( $array_of_queries );
 		foreach( $first_query->column as $column_name => $column_value ) {
 			$query_union->column[$column_name] = $column_name;

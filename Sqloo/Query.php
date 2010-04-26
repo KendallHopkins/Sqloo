@@ -47,9 +47,8 @@ class Sqloo_Query implements Iterator
 	private $_sqloo_connection;
 	
 	/* Query Data */
-	private $_root_table_class = NULL;
-	private $_union_array = NULL;
-	private $_query_data = array(
+	protected $_root_table_class = NULL;
+	protected $_query_data = array(
 		"column" => NULL,
 		"where" => array(),
 		"order" => array(),
@@ -72,13 +71,11 @@ class Sqloo_Query implements Iterator
 	*
 	*	This should never be called directly, look at Sqloo->newQuery()
 	*	@param	Sqloo
-	*	@param	array	If this query is a union query this is an array of Sqloo_Query objects
 	*/
 	
-	public function __construct( Sqloo_Connection $sqloo_connection, $union_array = NULL )
+	public function __construct( Sqloo_Connection $sqloo_connection )
 	{
 		$this->_sqloo_connection = $sqloo_connection;
-		$this->_union_array = $union_array;
 	}
 	
 	/**
@@ -101,6 +98,7 @@ class Sqloo_Query implements Iterator
 	*	
 	*	@return	string 	Query string
 	*/
+	
 	public function __toString()
 	{
 		return $this->getQueryString();
@@ -117,12 +115,24 @@ class Sqloo_Query implements Iterator
 	
 	public function table( $table_name )
 	{
-		if( $this->_root_table_class !== NULL )
+		if( $this->_root_table_class )
 			throw new Sqloo_Exception( "Root table is already set", Sqloo_Exception::BAD_INPUT );
-		if( $this->_union_array !== NULL )
-			throw new Sqloo_Exception( "This is a union query", Sqloo_Exception::BAD_INPUT );
 		
 		$this->_root_table_class = new Sqloo_Query_Table( $table_name );
+		return $this->_root_table_class;
+	}
+	
+	/**
+	*	Get root table
+	*
+	*	@return	Sqloo_Query_Table	A Sqloo_Query_Table object
+	*/
+	
+	public function getTable()
+	{
+		if( ! $this->_root_table_class )
+			throw new Sqloo_Exception( "Root table not set", Sqloo_Exception::BAD_INPUT );
+		
 		return $this->_root_table_class;
 	}
 	
@@ -275,7 +285,6 @@ class Sqloo_Query implements Iterator
 			$this->_statement_object = $this->_sqloo_connection->prepare( $this->getQueryString(), TRUE );
 		
 		$parameter_array += $this->getParameterArray();
-				
 		$this->_sqloo_connection->execute( $this->_statement_object, $parameter_array );
 	}
 	
@@ -351,7 +360,7 @@ class Sqloo_Query implements Iterator
 	{
 		static $parameter_index = 0;
 		$key = "_p_".$parameter_index++;
-		$this->parameter_array[$key] &= $parameter;
+		$this->parameter_array[$key] = &$parameter;
 		return ":".$key;
 	}
 	
@@ -365,6 +374,15 @@ class Sqloo_Query implements Iterator
 	}
 	
 	/**
+	*	Shortcut for ->parameter( .. );
+	*/
+	
+	public function bind( &$parameter )
+	{
+		return $this->parameter( $parameter );
+	}
+	
+	/**
 	*	Accessor for the internal parameter array
 	*
 	*	@return	array	associtated array
@@ -372,12 +390,7 @@ class Sqloo_Query implements Iterator
 	
 	public function getParameterArray()
 	{
-		$parameter_array = $this->parameter_array;
-		if( ! is_null( $this->_union_array ) )
-			foreach( $this->_union_array as $union_query )
-				$parameter_array += $union_query->parameter_array;
-		
-		return $parameter_array;
+		return $this->parameter_array;
 	}
 	
 	/**
@@ -430,57 +443,48 @@ class Sqloo_Query implements Iterator
 		return substr( $select_string, 0, -2 )."\n";
 	}
 	
-	private function _getFromString()
+	protected function _getFromString()
 	{
-		if( ( ! $this->_root_table_class ) && ( ! $this->_union_array ) ) 
+		if( ! $this->_root_table_class ) 
 			throw new Sqloo_Exception( "Root table is not set", Sqloo_Exception::BAD_INPUT );
-		if( ( $this->_root_table_class ) && ( $this->_union_array ) )
-			throw new Sqloo_Exception( "Nothing set", Sqloo_Exception::BAD_INPUT );
 		
 		$from_string = "FROM ";
-		if( $this->_root_table_class ) {
-			$from_string .= "\"".$this->_root_table_class->getTableName()."\" AS \"".$this->_root_table_class->getReference()."\"\n";
-			foreach( $this->_getJoinData( $this->_root_table_class ) as $join_data ) {
-				switch( $join_data["type"] ) {
-					case Sqloo_Query_Table::JOIN_CHILD:
-						$from_string .= 
-							$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
-							"ON ".$join_data["to_column_ref"]." = ".$join_data["from_column_ref"]."\n";
-						break;
-					case Sqloo_Query_Table::JOIN_PARENT:
-						$from_string .= 
-							$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
-							"ON ".$join_data["to_column_ref"]." = ".$join_data["from_column_ref"]."\n";
-						break;
+		$from_string .= "\"".$this->_root_table_class->getTableName()."\" AS \"".$this->_root_table_class->getReference()."\"\n";
+		foreach( $this->_getJoinData( $this->_root_table_class ) as $join_data ) {
+			switch( $join_data["type"] ) {
+				case Sqloo_Query_Table::JOIN_CHILD:
+					$from_string .= 
+						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
+						"ON ".$join_data["to_column_ref"]." = ".$join_data["from_column_ref"]."\n";
+					break;
+				case Sqloo_Query_Table::JOIN_PARENT:
+					$from_string .= 
+						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
+						"ON ".$join_data["to_column_ref"]." = ".$join_data["from_column_ref"]."\n";
+					break;
+				
+				case Sqloo_Query_Table::JOIN_NM:
+					$from_string .= 
+						$join_data["join_type"]." JOIN \"".$join_data["table_nm"]."\" AS \"".$join_data["reference_nm"]."\"\n".
+						"ON \"".$join_data["reference_from"]."\".id = \"".$join_data["reference_nm"]."\".".$join_data["table_from"]."\n".
+						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
+						"ON \"".$join_data["reference_to"]."\".id = \"".$join_data["reference_nm"]."\".".$join_data["table_to"]."\n";
+					break;
+				
+				case Sqloo_Query_Table::JOIN_CROSS:
+					$from_string .= 
+						$join_data["join_type"]." CROSS JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n";
+					break;
+				
+				case Sqloo_Query_Table::JOIN_CUSTOM_ON:
+					$from_string .= 
+						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
+						"ON ".$join_data["on_string"]."\n";
+					break;
 					
-					case Sqloo_Query_Table::JOIN_NM:
-						$from_string .= 
-							$join_data["join_type"]." JOIN \"".$join_data["table_nm"]."\" AS \"".$join_data["reference_nm"]."\"\n".
-							"ON \"".$join_data["reference_from"]."\".id = \"".$join_data["reference_nm"]."\".".$join_data["table_from"]."\n".
-							$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
-							"ON \"".$join_data["reference_to"]."\".id = \"".$join_data["reference_nm"]."\".".$join_data["table_to"]."\n";
-						break;
-					
-					case Sqloo_Query_Table::JOIN_CROSS:
-						$from_string .= 
-							$join_data["join_type"]." CROSS JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n";
-						break;
-					
-					case Sqloo_Query_Table::JOIN_CUSTOM_ON:
-						$from_string .= 
-							$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
-							"ON ".$join_data["on_string"]."\n";
-						break;
-						
-					default:
-						throw new Sqloo_Exception( "Bad join type, type_id: ".$join_data["type"], Sqloo_Exception::BAD_INPUT );
-				}
+				default:
+					throw new Sqloo_Exception( "Bad join type, type_id: ".$join_data["type"], Sqloo_Exception::BAD_INPUT );
 			}
-		} else {
-			$from_string .=
-				"( ( ".implode( " )\n".
-				"UNION ".( $this->_query_data["distinct"] ? "DISTINCT" : "ALL" )." \n".
-				"( ", $this->_union_array )." ) ) union_name\n";
 		}
 		return $from_string;
 	}
