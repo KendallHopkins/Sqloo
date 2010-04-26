@@ -149,7 +149,7 @@ class Sqloo_Query implements Iterator
 		if( ! array_key_exists( $key, $this->_query_data ) )
 			throw new Sqloo_Exception( "Bad key: $key", Sqloo_Exception::BAD_INPUT );
 		
-		if( $key === "parameter_array" )
+		if( $key !== "parameter_array" )
 			$this->_releaseStatementObject();		
 		
 		return $this->_query_data[$key];
@@ -169,6 +169,9 @@ class Sqloo_Query implements Iterator
 		if( ! array_key_exists( $key, $this->_query_data ) )
 			throw new Sqloo_Exception( "Bad key: $key", Sqloo_Exception::BAD_INPUT );
 		
+		if( $key !== "parameter_array" )
+			$this->_releaseStatementObject();
+		
 		$this->_query_data[$key] = $value;
 	}
 	
@@ -181,7 +184,7 @@ class Sqloo_Query implements Iterator
 	
 	public function column( $output_name, $expression )
 	{
-		$this->_query_data["column"][$output_name] = $expression;
+		$this->column[$output_name] = $expression;
 		return $this;
 	}
 	
@@ -193,7 +196,7 @@ class Sqloo_Query implements Iterator
 	
 	public function where( $condition )
 	{
-		$this->_query_data["where"][] = $condition;
+		$this->where[] = $condition;
 		return $this;
 	}
 	
@@ -206,7 +209,7 @@ class Sqloo_Query implements Iterator
 	
 	public function order( $expression, $type )
 	{
-		$this->_query_data["order"][$expression] = $type;
+		$this->order[$expression] = $type;
 		return $this;
 	}
 	
@@ -218,7 +221,7 @@ class Sqloo_Query implements Iterator
 	
 	public function group( $expression )
 	{
-		$this->_query_data["group"][] = $expression;
+		$this->group[] = $expression;
 		return $this;
 	}
 	
@@ -230,7 +233,7 @@ class Sqloo_Query implements Iterator
 	
 	public function having( $condition )
 	{
-		$this->_query_data["having"][] = $condition;
+		$this->having[] = $condition;
 		return $this;
 	}
 	
@@ -242,8 +245,8 @@ class Sqloo_Query implements Iterator
 	
 	public function limit( $limit, $page = 0 )
 	{
-		$this->_query_data["limit"] = $limit;
-		$this->_query_data["page"] = $page;
+		$this->limit = $limit;
+		$this->page = $page;
 		return $this;
 	}
 	
@@ -255,7 +258,7 @@ class Sqloo_Query implements Iterator
 	
 	public function offset( $offset )
 	{
-		$this->_query_data["offset"] = $offset;
+		$this->offset = $offset;
 		return $this;
 	}
 	
@@ -267,7 +270,7 @@ class Sqloo_Query implements Iterator
 	
 	public function distinct( $distinct )
 	{
-		$this->_query_data["distinct"] = $distinct;
+		$this->distinct = $distinct;
 		return $this;
 	}
 	
@@ -279,8 +282,8 @@ class Sqloo_Query implements Iterator
 	
 	public function lock( $type, $wait = TRUE )
 	{
-		$this->_query_data["lock"] = $type;
-		$this->_query_data["lock_wait"] = $wait;
+		$this->lock = $type;
+		$this->lock_wait = $wait;
 		return $this;
 	}
 	
