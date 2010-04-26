@@ -340,7 +340,9 @@ class Sqloo_Connection
 			}
 		}
 		
-		$insert_string .= "(\"".implode( "\",\"", $column_array )."\") VALUES(".implode( ",", $placeholder_value_array ).")";
+		$insert_string .=
+			"(\"".implode( "\",\"", $column_array )."\")\n".
+			"VALUES(".implode( ",", $placeholder_value_array ).")";
 		$this->query( $insert_string, $param_value_array );
 		return $this->_getDatabaseResource( self::QUERY_MASTER )->lastInsertId( $table_name."_id_seq" );
 	}
@@ -349,15 +351,13 @@ class Sqloo_Connection
 	{
 		$insert_string =
 			"INSERT INTO \"".$table_name."\"\n". 
-			" (".implode( ",", array_keys( $query->column ) ).")\n".
+			"(".implode( ",", array_keys( $query->column ) ).")\n".
 			(string)$query; //transform object to string (function __toString)
 		
 		if( ! $parameter_array ) $parameter_array = array();
 		$parameter_array += $query->getParameterArray();
 
-		$this->query( $insert_string, $parameter_array );
-		
-		return $this->_getDatabaseResource( self::QUERY_MASTER )->lastInsertId( $table_name."_id_seq" );
+		$this->query( $insert_string, $parameter_array );		
 	}
 	
 	/**
