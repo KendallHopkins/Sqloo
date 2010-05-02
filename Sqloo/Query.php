@@ -91,6 +91,17 @@ class Sqloo_Query implements Iterator
 	}
 	
 	/**
+	*	Clone function
+	*
+	*	@access private
+	*/
+	
+	public function __clone()
+	{
+		$this->_releaseStatementObject();
+	}
+	
+	/**
 	*	Class to string
 	*
 	*	Just calls $this->getQueryString()
@@ -639,8 +650,6 @@ class Sqloo_Query implements Iterator
 	{
 		return (bool)$this->_current_row;
 	}
-	
-	private function __clone() {}
 		
 }
 
