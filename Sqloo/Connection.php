@@ -232,7 +232,7 @@ class Sqloo_Connection
 				switch( $info[self::_CACHE_INDEX_TYPE] ) {
 					case self::_CACHE_TYPE_SET: $this->_caching_class->set( $key, $info[self::_CACHE_INDEX_DATA] ); break;
 					case self::_CACHE_TYPE_REMOVE: $this->_caching_class->remove( $key ); break;
-					default: throw new Exception( "bad type" ); break;
+					default: throw new Exception( "bad type" );
 				}
 			}
 			$this->_getDatabaseResource( self::QUERY_MASTER )->commit();
@@ -263,12 +263,13 @@ class Sqloo_Connection
 						$data = $this->_transaction_cache_array[$current_cache_layer][$key][self::_CACHE_INDEX_DATA];
 						return TRUE;
 						break;
+						
 					case self::_CACHE_TYPE_REMOVE:
 						return FALSE;
 						break;
+						
 					default:
 						throw new Exception( "bad type" );
-						break;
 				}
 			}
 		}
@@ -534,9 +535,11 @@ class Sqloo_Connection
 				case self::QUERY_MASTER:
 					$function_name_array = array( $this->_master_db_function );
 					break;
+					
 				case self::QUERY_SLAVE:
 					$function_name_array = array( $this->_slave_db_function, $this->_master_db_function );
 					break;
+					
 				default:
 					throw new Sqloo_Exception( "Bad type_id: ".$type_string, Sqloo_Exception::BAD_INPUT );
 			}

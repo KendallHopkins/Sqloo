@@ -128,8 +128,7 @@ class Sqloo_Query implements Iterator
 		if( $this->_root_table_class )
 			throw new Sqloo_Exception( "Root table is already set", Sqloo_Exception::BAD_INPUT );
 		
-		$this->_root_table_class = new Sqloo_Query_Table( $table_name );
-		return $this->_root_table_class;
+		return $this->_root_table_class = new Sqloo_Query_Table( $table_name );
 	}
 	
 	/**
@@ -160,9 +159,7 @@ class Sqloo_Query implements Iterator
 		if( ! array_key_exists( $key, $this->_query_data ) )
 			throw new Sqloo_Exception( "Bad key: $key", Sqloo_Exception::BAD_INPUT );
 		
-		if( $key !== "parameter_array" )
-			$this->_releaseStatementObject();		
-		
+		$this->_releaseStatementObject();		
 		return $this->_query_data[$key];
 	}
 	
@@ -180,9 +177,7 @@ class Sqloo_Query implements Iterator
 		if( ! array_key_exists( $key, $this->_query_data ) )
 			throw new Sqloo_Exception( "Bad key: $key", Sqloo_Exception::BAD_INPUT );
 		
-		if( $key !== "parameter_array" )
-			$this->_releaseStatementObject();
-		
+		$this->_releaseStatementObject();
 		$this->_query_data[$key] = $value;
 	}
 	
@@ -569,15 +564,9 @@ class Sqloo_Query implements Iterator
 			switch( $this->_sqloo_connection->getDBType() ) {
 				case Sqloo_Connection::DB_MYSQL:
 					switch( $this->_query_data["lock"] ) {
-						case self::SELECT_LOCK_SHARE:
-							$lock_string .= "LOCK IN SHARE MODE\n";
-							break;
-						case self::SELECT_LOCK_UPDATE:
-							$lock_string .= "FOR UPDATE\n";
-							break;
-						default:
-							throw new Sqloo_Exception( "Unknown locking type: ".$this->_query_data["lock"], Sqloo_Exception::BAD_INPUT );
-							break;
+						case self::SELECT_LOCK_SHARE: $lock_string .= "LOCK IN SHARE MODE\n"; break;
+						case self::SELECT_LOCK_UPDATE: $lock_string .= "FOR UPDATE\n"; break;
+						default: throw new Sqloo_Exception( "Unknown locking type: ".$this->_query_data["lock"], Sqloo_Exception::BAD_INPUT );
 					}
 					if( ! $this->_query_data["lock_wait"] )
 						throw new Exception( "Mysql doesn't support NOWAIT for locking tables on select", Sqloo_Exception::BAD_INPUT );
@@ -585,15 +574,9 @@ class Sqloo_Query implements Iterator
 					
 				case Sqloo_Connection::DB_PGSQL:
 					switch( $this->_query_data["lock"] ) {
-						case self::SELECT_LOCK_SHARE:
-							$lock_string .= "FOR SHARE\n";
-							break;
-						case self::SELECT_LOCK_UPDATE:
-							$lock_string .= "FOR UPDATE\n";
-							break;
-						default:
-							throw new Sqloo_Exception( "Unknown locking type: ".$this->_query_data["lock"], Sqloo_Exception::BAD_INPUT );
-							break;
+						case self::SELECT_LOCK_SHARE: $lock_string .= "FOR SHARE\n"; break;
+						case self::SELECT_LOCK_UPDATE: $lock_string .= "FOR UPDATE\n"; break;
+						default: throw new Sqloo_Exception( "Unknown locking type: ".$this->_query_data["lock"], Sqloo_Exception::BAD_INPUT );
 					}
 					if( ! $this->_query_data["lock_wait"] )
 						$lock_string .= "NOWAIT\n";
@@ -601,7 +584,6 @@ class Sqloo_Query implements Iterator
 				
 				default:
 					throw new Sqloo_Exception( "Unknown db type", Sqloo_Exception::BAD_INPUT );
-					break;
 			}
 		}
 		
