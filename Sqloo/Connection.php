@@ -62,7 +62,6 @@ class Sqloo_Connection
 	
 	public function __destruct()
 	{
-		
 		if( $this->_transaction_depth ) {
 			do {
 				$this->rollbackTransaction();				
@@ -106,10 +105,7 @@ class Sqloo_Connection
 	
 	public function prepare( $query_string, $on_slave = FALSE )
 	{
-		if( $this->_transaction_depth || ( ! $on_slave ) )
-			$query_type = self::QUERY_MASTER;
-		else
-			$query_type = self::QUERY_SLAVE;
+		$query_type = ( $this->_transaction_depth || ( ! $on_slave ) ) ? self::QUERY_MASTER : self::QUERY_SLAVE;
 		$database_resource = $this->_getDatabaseResource( $query_type );
 		
 		try {
@@ -132,7 +128,6 @@ class Sqloo_Connection
 	
 	public function execute( $statement_object, array $parameters_array = NULL )
 	{	
-	
 		if( ! is_null( $parameters_array ) ) {
 			foreach( $parameters_array as $key => $value ) {
 				if( is_null( $value ) ) {
@@ -178,8 +173,7 @@ class Sqloo_Connection
 	public function beginTransaction()
 	{
 		if( $this->_transaction_depth == 0 ) {
-			$pdo = $this->_getDatabaseResource( self::QUERY_MASTER );
-			$pdo->beginTransaction();
+			$this->_getDatabaseResource( self::QUERY_MASTER )->beginTransaction();
 		} else {
 			$savepoint_name = "s".$this->_transaction_depth;
 			$this->query( "SAVEPOINT $savepoint_name" );		
@@ -196,21 +190,20 @@ class Sqloo_Connection
 	
 	public function rollbackTransaction()
 	{
-		if( $this->_transaction_depth ) {
-			$this->_transaction_depth--;
-			
-			if( $this->_transaction_depth == 0 ) {
-				$pdo = $this->_getDatabaseResource( self::QUERY_MASTER )->rollBack();
-			} else {
-				$savepoint_name = "s".( $this->_transaction_depth );
-				$this->query( "ROLLBACK TO SAVEPOINT $savepoint_name" );		
-			}
-			
-			//throw away outer cache layer
-			unset( $this->_transaction_cache_array[$this->_transaction_depth] );
+		if( ! $this->_transaction_depth )
+			throw new Sqloo_Exception( "not in a transaction, didn't rollback", Sqloo_Exception::BAD_INPUT );
+				
+		$this->_transaction_depth--;
+		
+		if( $this->_transaction_depth > 0 ) {
+			$savepoint_name = "s".( $this->_transaction_depth );
+			$this->query( "ROLLBACK TO SAVEPOINT $savepoint_name" );	
 		} else {
-			throw new Sqloo_Exception( "not in a transaction, didn't rollback", Sqloo_Exception::BAD_INPUT );		
+			$this->_getDatabaseResource( self::QUERY_MASTER )->rollBack();
 		}
+		
+		//throw away outer cache layer
+		unset( $this->_transaction_cache_array[$this->_transaction_depth] );
 	}
 	
 	/**
@@ -219,34 +212,30 @@ class Sqloo_Connection
 	
 	public function commitTransaction()
 	{
-		if( $this->_transaction_depth ) {
-			$this->_transaction_depth--;
-			
-			//merge outer layer into the next layer
-			$outer_cache_layer = $this->_transaction_cache_array[$this->_transaction_depth];
-			unset( $this->_transaction_cache_array[$this->_transaction_depth] );
-			
-			if( $this->_transaction_depth > 0 ) {
-				//merge layer down
-				$this->_transaction_cache_array[$this->_transaction_depth - 1] = $outer_cache_layer + $this->_transaction_cache_array[$this->_transaction_depth - 1];
-			} else {
-				foreach( $outer_cache_layer as $key => $info ) {
-					switch( $info[self::_CACHE_INDEX_TYPE] ) {
-						case self::_CACHE_TYPE_SET: $this->_caching_class->set( $key, $info[self::_CACHE_INDEX_DATA] ); break;
-						case self::_CACHE_TYPE_REMOVE: $this->_caching_class->remove( $key ); break;
-						default: throw new Exception( "bad type" ); break;
-					}
+		if( ! $this->_transaction_depth )
+			throw new Sqloo_Exception( "not in a transaction, didn't commit", Sqloo_Exception::BAD_INPUT );	
+		
+		$this->_transaction_depth--;
+		
+		//merge outer layer into the next layer
+		$outer_cache_layer = $this->_transaction_cache_array[$this->_transaction_depth];
+		unset( $this->_transaction_cache_array[$this->_transaction_depth] );
+		
+		if( $this->_transaction_depth > 0 ) {
+			//merge cache layer down
+			$this->_transaction_cache_array[$this->_transaction_depth - 1] = $outer_cache_layer + $this->_transaction_cache_array[$this->_transaction_depth - 1];
+			$savepoint_name = "s".( $this->_transaction_depth );
+			$this->query( "RELEASE SAVEPOINT $savepoint_name" );
+		} else {
+			//commit cache layer to cache
+			foreach( $outer_cache_layer as $key => $info ) {
+				switch( $info[self::_CACHE_INDEX_TYPE] ) {
+					case self::_CACHE_TYPE_SET: $this->_caching_class->set( $key, $info[self::_CACHE_INDEX_DATA] ); break;
+					case self::_CACHE_TYPE_REMOVE: $this->_caching_class->remove( $key ); break;
+					default: throw new Exception( "bad type" ); break;
 				}
 			}
-		
-			if( $this->_transaction_depth == 0 ) {
-				$this->_getDatabaseResource( self::QUERY_MASTER )->commit();
-			} else {
-				$savepoint_name = "s".( $this->_transaction_depth );
-				$this->query( "RELEASE SAVEPOINT $savepoint_name" );		
-			}
-		} else {
-			throw new Sqloo_Exception( "not in a transaction, didn't commit", Sqloo_Exception::BAD_INPUT );		
+			$this->_getDatabaseResource( self::QUERY_MASTER )->commit();
 		}
 	}
 	
@@ -341,7 +330,9 @@ class Sqloo_Connection
 		$insert_string .=
 			"(\"".implode( "\",\"", $column_array )."\")\n".
 			"VALUES(".implode( ",", $placeholder_value_array ).")";
+		
 		$this->query( $insert_string, $param_value_array );
+		
 		return $this->_getDatabaseResource( self::QUERY_MASTER )->lastInsertId( $table_name."_id_seq" );
 	}
 	
@@ -388,6 +379,7 @@ class Sqloo_Connection
 		$update_string = substr( $update_string, 0, -1 )."\n";
 		$id_array_count = count( $id_array );
 		$update_string .= "WHERE id IN (".implode( ",", array_fill( 0, count( $id_array ), "?" ) ).")\n";
+		
 		$this->query( $update_string, array_merge( array_values( $update_array ), array_values( $id_array ) ) );
 	}
 	
@@ -431,23 +423,26 @@ class Sqloo_Connection
 	
 	public function delete( $table_name, array $id_array )
 	{
-		if ( ! $id_array ) throw new Sqloo_Exception( "id_array of 0 size", Sqloo_Exception::BAD_INPUT );
+		if ( ! $id_array )
+			throw new Sqloo_Exception( "id_array of 0 size", Sqloo_Exception::BAD_INPUT );
+		
 		$delete_string =
 			"DELETE FROM \"".$table_name."\"\n".
 			"WHERE id IN (".implode( ",", array_fill( 0, count( $id_array ) , "?" ) ).")";
+			
 		$this->query( $delete_string, array_values( $id_array ) );
 	}
 	
 	public function deleteWhere( $table_name, $where_string, array $parameters_array = NULL )
 	{
-		if( is_string( $where_string ) ) {
-			$delete_string = 
-				"DELETE FROM \"".$table_name."\"\n".
-				"WHERE ".$where_string;
-			$this->query( $delete_string, $parameters_array );
-		} else {
+		if( ! is_string( $where_string ) )
 			throw new Sqloo_Exception( "bad input type", Sqloo_Exception::BAD_INPUT );
-		}
+		
+		$delete_string = 
+			"DELETE FROM \"".$table_name."\"\n".
+			"WHERE ".$where_string;
+		
+		$this->query( $delete_string, $parameters_array );
 	}
 	
 	/**
@@ -461,13 +456,10 @@ class Sqloo_Connection
 	
 	public function union( array $array_of_queries )
 	{
-		if( ! $array_of_queries ) throw new Sqloo_Exception( "No queries in array", Sqloo_Exception::BAD_INPUT );
-		$query_union = new Sqloo_Union( $this, $array_of_queries );
-		$first_query = array_shift( $array_of_queries );
-		foreach( $first_query->column as $column_name => $column_value ) {
-			$query_union->column[$column_name] = $column_name;
-		}
-		return $query_union;
+		if( ! $array_of_queries )
+			throw new Sqloo_Exception( "No queries in array", Sqloo_Exception::BAD_INPUT );
+				
+		return new Sqloo_Union( $this, $array_of_queries );
 	}
 	
 	/**

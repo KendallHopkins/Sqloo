@@ -185,6 +185,7 @@ class Sqloo_Query implements Iterator
 	public function column( $output_name, $expression )
 	{
 		$this->column[$output_name] = $expression;
+		$this->_releaseStatementObject();
 		return $this;
 	}
 	
@@ -197,6 +198,7 @@ class Sqloo_Query implements Iterator
 	public function where( $condition )
 	{
 		$this->where[] = $condition;
+		$this->_releaseStatementObject();
 		return $this;
 	}
 	
@@ -210,6 +212,7 @@ class Sqloo_Query implements Iterator
 	public function order( $expression, $type )
 	{
 		$this->order[$expression] = $type;
+		$this->_releaseStatementObject();
 		return $this;
 	}
 	
@@ -222,6 +225,7 @@ class Sqloo_Query implements Iterator
 	public function group( $expression )
 	{
 		$this->group[] = $expression;
+		$this->_releaseStatementObject();
 		return $this;
 	}
 	
@@ -234,6 +238,7 @@ class Sqloo_Query implements Iterator
 	public function having( $condition )
 	{
 		$this->having[] = $condition;
+		$this->_releaseStatementObject();
 		return $this;
 	}
 	
@@ -247,6 +252,7 @@ class Sqloo_Query implements Iterator
 	{
 		$this->limit = $limit;
 		$this->page = $page;
+		$this->_releaseStatementObject();
 		return $this;
 	}
 	
@@ -259,6 +265,7 @@ class Sqloo_Query implements Iterator
 	public function offset( $offset )
 	{
 		$this->offset = $offset;
+		$this->_releaseStatementObject();
 		return $this;
 	}
 	
@@ -271,6 +278,7 @@ class Sqloo_Query implements Iterator
 	public function distinct( $distinct )
 	{
 		$this->distinct = $distinct;
+		$this->_releaseStatementObject();
 		return $this;
 	}
 	
@@ -284,6 +292,7 @@ class Sqloo_Query implements Iterator
 	{
 		$this->lock = $type;
 		$this->lock_wait = $wait;
+		$this->_releaseStatementObject();
 		return $this;
 	}
 	
@@ -438,14 +447,14 @@ class Sqloo_Query implements Iterator
 	
 	protected function _getSelectString()
 	{
+		if( ! $this->_query_data["column"] )
+			throw new Sqloo_Exception( "No columns have been set", Sqloo_Exception::BAD_INPUT );
+		
 		$select_string =
 			"SELECT ".( $this->_query_data["distinct"] ? "DISTINCT" : "ALL" )."\n";
 			
-		if( $this->_query_data["column"])
-			foreach( $this->_query_data["column"] as $output_name => $reference )
-				$select_string .= ( is_null( $reference ) ? "NULL" : $reference )." AS \"".$output_name."\",\n";
-		else
-			$select_string .= "* \n";
+		foreach( $this->_query_data["column"] as $output_name => $reference )
+			$select_string .= ( is_null( $reference ) ? "NULL" : $reference )." AS \"".$output_name."\",\n";
 			
 		return substr( $select_string, 0, -2 )."\n";
 	}
@@ -465,6 +474,7 @@ class Sqloo_Query implements Iterator
 						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
 						"ON ".$join_data["to_column_ref"]." = ".$join_data["from_column_ref"]."\n";
 					break;
+				
 				case Sqloo_Query_Table::JOIN_PARENT:
 					$from_string .= 
 						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
@@ -520,6 +530,7 @@ class Sqloo_Query implements Iterator
 			$order_string .= "ORDER BY ";
 			foreach( $this->_query_data["order"] as $reference => $order_type )
 				$order_string .= $reference." ".$order_type.", ";
+			
 			$order_string = substr( $order_string, 0, -2 )."\n";
 		}
 		return $order_string;
@@ -557,7 +568,8 @@ class Sqloo_Query implements Iterator
 							throw new Sqloo_Exception( "Unknown locking type: ".$this->_query_data["lock"], Sqloo_Exception::BAD_INPUT );
 							break;
 					}
-					if( ! $this->_query_data["lock_wait"] ) throw new Exception( "Mysql doesn't support NOWAIT for locking tables on select", Sqloo_Exception::BAD_INPUT );
+					if( ! $this->_query_data["lock_wait"] )
+						throw new Exception( "Mysql doesn't support NOWAIT for locking tables on select", Sqloo_Exception::BAD_INPUT );
 					break;
 					
 				case Sqloo_Connection::DB_PGSQL:
@@ -572,7 +584,8 @@ class Sqloo_Query implements Iterator
 							throw new Sqloo_Exception( "Unknown locking type: ".$this->_query_data["lock"], Sqloo_Exception::BAD_INPUT );
 							break;
 					}
-					if( ! $this->_query_data["lock_wait"] ) $lock_string .= "NOWAIT\n";
+					if( ! $this->_query_data["lock_wait"] )
+						$lock_string .= "NOWAIT\n";
 					break;
 				
 				default:
