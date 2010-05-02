@@ -470,47 +470,28 @@ class Sqloo_Query implements Iterator
 		if( ! $this->_root_table_class ) 
 			throw new Sqloo_Exception( "Root table is not set", Sqloo_Exception::BAD_INPUT );
 		
-		$from_string = 
-			"FROM \"".$this->_root_table_class->getTableName()."\" AS \"".$this->_root_table_class->getReference()."\"\n";
+		$from_string = "FROM \"".$this->_root_table_class->getTableName()."\" AS ".(string)$this->_root_table_class."\n";
 		
-		foreach( $this->_getJoinData( $this->_root_table_class ) as $join_data ) {
-			switch( $join_data["type"] ) {
-				case Sqloo_Query_Table::JOIN_CHILD:
-					$from_string .= 
-						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
-						"ON ".$join_data["to_column_ref"]." = ".$join_data["from_column_ref"]."\n";
-					break;
-				
-				case Sqloo_Query_Table::JOIN_PARENT:
-					$from_string .= 
-						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
-						"ON ".$join_data["to_column_ref"]." = ".$join_data["from_column_ref"]."\n";
-					break;
-				
-				case Sqloo_Query_Table::JOIN_CROSS:
-					$from_string .= 
-						$join_data["join_type"]." CROSS JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n";
-					break;
-				
-				case Sqloo_Query_Table::JOIN_CUSTOM_ON:
-					$from_string .= 
-						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
-						"ON ".$join_data["on_string"]."\n";
-					break;
-					
-				default:
-					throw new Sqloo_Exception( "Bad join type, type_id: ".$join_data["type"], Sqloo_Exception::BAD_INPUT );
-			}
+		foreach( self::_getJoinData( $this->_root_table_class ) as $join_data ) {
+			$from_string .= $join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS ".$join_data["table_class"]."\n".
+			
+			if( array_key_exists( "on_string", $join_data ) )
+				$from_string .= "ON ".$join_data["on_string"]."\n";
 		}
+		
 		return $from_string;
 	}
 	
-	protected function _getJoinData( $query_table_class )
+	static protected function _getJoinData( Sqloo_Query_Table $query_table_class )
 	{
-		$join_data_array = $query_table_class->getJoinData();
-		foreach( $join_data_array as $join_data )
-			$join_data_array += $this->_getJoinData( $join_data["class"] );
-		
+		$join_data_array = array();
+		foreach( $query_table_class->_getJoinDataArray() as $join_data ) {
+			$join_data_array = array_merge(
+				$join_data_array,
+				$join_data,
+				self::_getJoinData( $join_data["table_class"] )
+			);
+		}
 		return $join_data_array;
 	}
 	
