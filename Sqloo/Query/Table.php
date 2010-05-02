@@ -32,82 +32,52 @@ class Sqloo_Query_Table
 	/** @access private */
 	const JOIN_PARENT = 2;
 	/** @access private */
-	const JOIN_NM = 3;
+	const JOIN_CROSS = 3;
 	/** @access private */
-	const JOIN_CROSS = 4;
-	/** @access private */
-	const JOIN_CUSTOM_ON = 5;
+	const JOIN_CUSTOM_ON = 4;
 	
 	//this ensure you can union simlar queries without naming overlap
 	static private $_unique_table_iterator = 0;
 	
 	private $_name;
 	private $_reference;
-	private $_nm_query_table_class;
 	private $_join_data = array();
 	
-	public function __construct( $table_name, $table_reference = NULL, $nm_query_table_class = NULL )
+	public function __construct( $table_name, $table_reference = NULL )
 	{
 		$this->_name = $table_name;
-		$this->_reference = ( ( $table_reference !== NULL ) ? $table_reference : $table_name )."_".( ++self::$_unique_table_iterator );
-		$this->_nm_query_table_class = $nm_query_table_class;
+		$this->_reference = ( is_null( $table_reference ) ? $table_name : $table_reference )."_".( ++self::$_unique_table_iterator );
 	}
 	
 	public function __get( $key ) { return "\"".$this->_reference."\".\"".$key."\""; }
 	
 	public function __toString() { return "\"".$this->_reference."\""; }
 	
-	public function getNMTable()
+	public function joinChild( $foreign_table_name, $local_join_column, $foreign_join_column, $join_type = Sqloo_Query::JOIN_INNER )
 	{
-		if( $this->_nm_query_table_class === NULL )
-			throw new Sqloo_Exception( "This table wasn't joined using joinNM(), so it doesn't have a NMTable", Sqloo_Exception::BAD_INPUT );
-		return $this->_nm_query_table_class;
-	}
-	
-	public function joinChild( $child_table_name, $join_column, $join_type = Sqloo_Query::JOIN_INNER )
-	{
-		$new_sqloo_query_table = new self( $child_table_name, $this->_reference."|".$child_table_name."+".$join_column );
+		$new_sqloo_query_table = new self( $foreign_table_name, $this->_reference."|".$foreign_table_name."+".$foreign_join_column );
 		$this->_join_data[] = array(
 			"type" => Sqloo_Query_Table::JOIN_CHILD,
 			"class" => $new_sqloo_query_table,
-			"table_to" => $child_table_name,
+			"table_to" => $foreign_table_name,
 			"reference_to" => $new_sqloo_query_table->getReference(),
-			"join_type" => $join_type,
-			"to_column_ref" => $new_sqloo_query_table->$join_column,
-			"from_column_ref" => $this->id
-		);
-		return $new_sqloo_query_table;
-	}
-	
-	public function joinParent( $parent_table_name, $join_column, $join_type = Sqloo_Query::JOIN_INNER )
-	{
-		$new_sqloo_query_table = new self( $parent_table_name, $this->_reference."|".$parent_table_name."++".$join_column );
-		$this->_join_data[] = array(
-			"type" => Sqloo_Query_Table::JOIN_PARENT,
-			"class" => $new_sqloo_query_table,
-			"table_to" => $parent_table_name,
-			"reference_to" => $new_sqloo_query_table->getReference(),
-			"to_column_ref" => $new_sqloo_query_table->id,
-			"from_column_ref" => $this->$join_column,
+			"to_column_ref" => $new_sqloo_query_table->$foreign_join_column,
+			"from_column_ref" => $this->$local_join_column,
 			"join_type" => $join_type
 		);
 		return $new_sqloo_query_table;
 	}
 	
-	public function joinNM( $table_name, $join_type = Sqloo_Query::JOIN_INNER )
+	public function joinParent( $foreign_table_name, $local_join_column, $foreign_join_column, $join_type = Sqloo_Query::JOIN_INNER )
 	{
-		$nm_table_name = Sqloo_Connection::computeNMTableName( $this->_name, $table_name );
-		$new_nm_sqloo_query_table = new self( $nm_table_name, $this->_reference."|".$nm_table_name );
-		$new_sqloo_query_table = new self( $table_name, $this->_reference."|".$table_name, $new_nm_sqloo_query_table );
+		$new_sqloo_query_table = new self( $foreign_table_name, $this->_reference."|".$foreign_table_name."++".$foreign_join_column );
 		$this->_join_data[] = array(
-			"type" => Sqloo_Query_Table::JOIN_NM,
+			"type" => Sqloo_Query_Table::JOIN_PARENT,
 			"class" => $new_sqloo_query_table,
-			"table_from" => $this->_name,
-			"table_to" => $table_name,
-			"table_nm" => $nm_table_name,
-			"reference_from" => $this->getReference(),
+			"table_to" => $foreign_table_name,
 			"reference_to" => $new_sqloo_query_table->getReference(),
-			"reference_nm" => $new_nm_sqloo_query_table->getReference(),
+			"to_column_ref" => $new_sqloo_query_table->$foreign_join_column,
+			"from_column_ref" => $this->$local_join_column,
 			"join_type" => $join_type
 		);
 		return $new_sqloo_query_table;

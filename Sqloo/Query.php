@@ -436,17 +436,7 @@ class Sqloo_Query implements Iterator
 		return $this->_statement_object->fetchAll( PDO::FETCH_ASSOC );
 	}
 	
-	/* Inner workings */
-	
-	private function _releaseStatementObject()
-	{
-		if( $this->_statement_object ) {
-			$this->_statement_object->closeCursor();
-			$this->_statement_object = NULL;
-		}
-	}
-	
-	private function _getSelectString()
+	protected function _getSelectString()
 	{
 		$select_string =
 			"SELECT ".( $this->_query_data["distinct"] ? "DISTINCT" : "ALL" )."\n";
@@ -481,14 +471,6 @@ class Sqloo_Query implements Iterator
 						"ON ".$join_data["to_column_ref"]." = ".$join_data["from_column_ref"]."\n";
 					break;
 				
-				case Sqloo_Query_Table::JOIN_NM:
-					$from_string .= 
-						$join_data["join_type"]." JOIN \"".$join_data["table_nm"]."\" AS \"".$join_data["reference_nm"]."\"\n".
-						"ON \"".$join_data["reference_from"]."\".id = \"".$join_data["reference_nm"]."\".".$join_data["table_from"]."\n".
-						$join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n".
-						"ON \"".$join_data["reference_to"]."\".id = \"".$join_data["reference_nm"]."\".".$join_data["table_to"]."\n";
-					break;
-				
 				case Sqloo_Query_Table::JOIN_CROSS:
 					$from_string .= 
 						$join_data["join_type"]." CROSS JOIN \"".$join_data["table_to"]."\" AS \"".$join_data["reference_to"]."\"\n";
@@ -507,7 +489,7 @@ class Sqloo_Query implements Iterator
 		return $from_string;
 	}
 	
-	private function _getJoinData( $query_table_class )
+	protected function _getJoinData( $query_table_class )
 	{
 		$join_data_array = $query_table_class->getJoinData();
 		foreach( $join_data_array as $join_data )
@@ -516,22 +498,22 @@ class Sqloo_Query implements Iterator
 		return $join_data_array;
 	}
 	
-	private function _getWhereString()
+	protected function _getWhereString()
 	{
 		return $this->_query_data["where"] ? "WHERE ( ".implode( " ) AND\n( ", $this->_query_data["where"] )." )\n" : "";
 	}
 	
-	private function _getGroupString()
+	protected function _getGroupString()
 	{
 		return $this->_query_data["group"] ? "GROUP BY ".implode( ", ", $this->_query_data["group"] )."\n" : "";
 	}
 	
-	private function _getHavingString()
+	protected function _getHavingString()
 	{
 		return $this->_query_data["having"] ? "HAVING ( ".implode( " ) AND\n( ", $this->_query_data["having"] )." )\n" : "";
 	}
 	
-	private function _getOrderString()
+	protected function _getOrderString()
 	{
 		$order_string = "";
 		if( $this->_query_data["order"] ) {
@@ -543,7 +525,7 @@ class Sqloo_Query implements Iterator
 		return $order_string;
 	}
 	
-	private function _getLimitString()
+	protected function _getLimitString()
 	{
 		$limit_string = "";
 		if( ! is_null( $this->_query_data["limit"] ) ) {
@@ -555,7 +537,7 @@ class Sqloo_Query implements Iterator
 		return $limit_string;		
 	}
 	
-	private function _getLockString()
+	protected function _getLockString()
 	{
 		$lock_string = "";
 		if( $this->_query_data["lock"] !== self::SELECT_LOCK_NONE ) {
@@ -599,8 +581,17 @@ class Sqloo_Query implements Iterator
 			}
 		}
 		
-		
 		return $lock_string;
+	}
+	
+	/* Inner workings */
+	
+	private function _releaseStatementObject()
+	{
+		if( $this->_statement_object ) {
+			$this->_statement_object->closeCursor();
+			$this->_statement_object = NULL;
+		}
 	}
 	
 	/* ITERATOR INTERFACE */

@@ -28,8 +28,6 @@ require_once( "Query.php" );
 require_once( "Union.php" );
 require_once( "CacheInterface.php" );
 require_once( "Exception.php" );
-require_once( "Datatypes.php" );
-require_once( "Utility.php" );
 
 class Sqloo_Connection
 {
@@ -470,50 +468,6 @@ class Sqloo_Connection
 			$query_union->column[$column_name] = $column_name;
 		}
 		return $query_union;
-	}
-		
-	/**
-	*	Get's the datatype for a variable type.
-	*
-	*	@param	array	key-value attrubute array
-	*	@return string	type string
-	*/
-	
-	public function getTypeString( array $attributes_array )
-	{
-		switch( $this->getDBType() ) {
-			case self::DB_MYSQL: 
-				require_once( "Datatypes/Mysql.php" );
-				return Sqloo_Datatypes_Mysql::getTypeString( $attributes_array );
-				break;
-			case self::DB_PGSQL: 
-				require_once( "Datatypes/Postgres.php" );
-				return Sqloo_Datatypes_Postgres::getTypeString( $attributes_array );
-				break;
-			default: throw new Sqloo_Exception( "Unknown database: ".$database_configuration["type"], Sqloo_Exception::BAD_INPUT );
-		}
-	}
-	
-	/**
-	*	Get's the function name for a database type.
-	*
-	*	@param	string	
-	*	@return string	type string
-	*/
-	
-	public function getFunction( $function, $content )
-	{
-		switch( $this->getDBType() ) {
-			case self::DB_MYSQL: 
-				require_once( "Datatypes/Mysql.php" );
-				return Sqloo_Datatypes_Mysql::getFunction( $function, $content );
-				break;
-			case self::DB_PGSQL: 
-				require_once( "Datatypes/Postgres.php" );
-				return Sqloo_Datatypes_Postgres::getFunction( $function, $content );
-				break;
-			default: throw new Sqloo_Exception( "Unknown database: ".$database_configuration["type"], Sqloo_Exception::BAD_INPUT );
-		}
 	}
 	
 	/**

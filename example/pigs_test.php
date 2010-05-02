@@ -58,7 +58,7 @@ $sqloo_connection->beginTransaction();
 	$wolfs_target_house_owner = "Pig 1";
 	$lookup_house_query = $sqloo_connection->newQuery();
 	$house_table_ref = $lookup_house_query->table( "house" );
-	$person_table_ref = $house_table_ref->joinParent( "person", "owner" );
+	$person_table_ref = $house_table_ref->joinParent( "person", "id", "owner" );
 	
 	$lookup_house_query
 		->where( $person_table_ref->name." = ".$lookup_house_query->parameter( $wolfs_target_house_owner ) )
