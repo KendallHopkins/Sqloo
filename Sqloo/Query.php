@@ -389,7 +389,7 @@ class Sqloo_Query implements Iterator
 	public function parameter( &$parameter )
 	{
 		static $parameter_index = 0;
-		$key = "_p_".$parameter_index++;
+		$key = "_p".$parameter_index++;
 		$this->parameter_array[$key] = &$parameter;
 		return ":".$key;
 	}
@@ -471,9 +471,8 @@ class Sqloo_Query implements Iterator
 			throw new Sqloo_Exception( "Root table is not set", Sqloo_Exception::BAD_INPUT );
 		
 		$from_string = "FROM \"".$this->_root_table_class->getTableName()."\" AS ".(string)$this->_root_table_class."\n";
-		
 		foreach( self::_getJoinData( $this->_root_table_class ) as $join_data ) {
-			$from_string .= $join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS ".$join_data["table_class"]."\n";
+			$from_string .= $join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS ".(string)$join_data["table_class"]."\n";
 			
 			if( array_key_exists( "on_string", $join_data ) )
 				$from_string .= "ON ".$join_data["on_string"]."\n";
