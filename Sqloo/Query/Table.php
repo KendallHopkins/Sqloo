@@ -48,7 +48,7 @@ class Sqloo_Query_Table
 	public function join( $foreign_table_name, $local_join_column, $foreign_join_column, $join_type = Sqloo_Query::JOIN_INNER )
 	{
 		$new_table = new self( $foreign_table_name, $this->_reference."|".$foreign_table_name."+".$local_join_column."+".$foreign_join_column );
-		$this->_join_data[] = array(
+		$this->_join_data_array[] = array(
 			"table_class" => $new_table,
 			"table_to" => $foreign_table_name,
 			"on_string" => $new_table->$foreign_join_column." = ".$this->$local_join_column,
@@ -70,7 +70,7 @@ class Sqloo_Query_Table
 	public function joinCustomOn( $foreign_table_name, &$on_string, $join_type = Sqloo_Query::JOIN_INNER )
 	{
 		$new_table = new self( $foreign_table_name, $this->_reference."||".$foreign_table_name );
-		$this->_join_data[] = array(
+		$this->_join_data_array[] = array(
 			"table_class" => $new_table,
 			"table_to" => $foreign_table_name,
 			"on_string" => &$on_string,
@@ -82,7 +82,7 @@ class Sqloo_Query_Table
 	public function joinCross( $foreign_table_name )
 	{
 		$new_table = new self( $foreign_table_name, $this->_reference."||".$foreign_table_name );
-		$this->_join_data[] = array(
+		$this->_join_data_array[] = array(
 			"table_class" => $new_table,
 			"table_to" => $foreign_table_name,
 			"join_type" => "CROSS"

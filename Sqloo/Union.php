@@ -57,7 +57,7 @@ class Sqloo_Union extends Sqloo_Query
 				"UNION ".( $this->_query_data["distinct"] ? "DISTINCT" : "ALL" )." \n".
 				"( ",
 				$this->_union_query_array
-			)." ) ) \"".$this->_root_table_class->getReference()."\"\n";
+			)." ) ) ".(string)$this->_root_table_class."\n";
 	}
 	
 }

@@ -488,7 +488,7 @@ class Sqloo_Query implements Iterator
 		foreach( $query_table_class->_getJoinDataArray() as $join_data ) {
 			$join_data_array = array_merge(
 				$join_data_array,
-				$join_data,
+				array( $join_data ),
 				self::_getJoinData( $join_data["table_class"] )
 			);
 		}
