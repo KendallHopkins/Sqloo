@@ -451,6 +451,16 @@ class Sqloo_Query implements Iterator
 		return $this->_statement_object->fetchAll( PDO::FETCH_ASSOC );
 	}
 	
+	public function getColumnNameArray()
+	{
+		return array_keys( $this->_query_data["column"] );
+	}
+	
+	public function sortColumns()
+	{
+		ksort( $this->_query_data["column"] );
+	}
+	
 	protected function _getSelectString()
 	{
 		if( ! $this->_query_data["column"] )

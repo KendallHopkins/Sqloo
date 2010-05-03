@@ -48,11 +48,36 @@ class Sqloo_Union extends Sqloo_Query
 		return $parameter_array;
 	}
 	
-	protected function _getFromString()
+	private function checkCompatibleQueries()
 	{
+		$first_query = NULL;
+		foreach( $this->_union_query_array as $union_query ) {
+			if( is_null( $first_query ) ) {
+				$first_query = $union_query->getColumnNameArray();			
+			} else if( $first_query !== $union_query->getColumnNameArray() ) {
+				return FALSE;
+			}
+		}
+		return TRUE;
+	}
+	
+	private function tryToMakeQueriesCompatible()
+	{
+		foreach( $this->_union_query_array as $union_query ) {
+			$union_query->sortColumns();
+		}
+	}
+	
+	protected function _getFromString()
+	{		
+		if( ! $this->checkCompatibleQueries() ) {
+			$this->tryToMakeQueriesCompatible();
+			if( ! $this->checkCompatibleQueries() )
+				throw new Exception( "Queries have incompatible columns" );
+		}
+		
 		return
-			"FROM ".
-			"( ( ".implode(
+			"FROM ( ( ".implode(
 				" )\n".
 				"UNION ".( $this->_query_data["distinct"] ? "DISTINCT" : "ALL" )." \n".
 				"( ",
