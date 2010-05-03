@@ -473,7 +473,7 @@ class Sqloo_Query implements Iterator
 		$from_string = "FROM \"".$this->_root_table_class->getTableName()."\" AS ".(string)$this->_root_table_class."\n";
 		
 		foreach( self::_getJoinData( $this->_root_table_class ) as $join_data ) {
-			$from_string .= $join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS ".$join_data["table_class"]."\n".
+			$from_string .= $join_data["join_type"]." JOIN \"".$join_data["table_to"]."\" AS ".$join_data["table_class"]."\n";
 			
 			if( array_key_exists( "on_string", $join_data ) )
 				$from_string .= "ON ".$join_data["on_string"]."\n";
