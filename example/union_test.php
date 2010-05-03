@@ -42,6 +42,9 @@ $sqloo_connection->beginTransaction();
 	$union_query = $sqloo_connection->union( array( $item_query, $person_query ) );
 	$union_table_ref = $union_query->getTable();
 	$union_query
+		->column( "id", $union_table_ref->id )
+		->column( "name", $union_table_ref->name )
+		->column( "type", $union_table_ref->type )
 		->where( "$union_table_ref->name LIKE 'Steve Jobs%'" )
 		->run();
 	
