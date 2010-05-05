@@ -89,7 +89,6 @@ class Sqloo_Connection
 	
 	public function query( $query_string, array $parameters_array = NULL, $on_slave = FALSE )
 	{
-		$query_string .= ";";
 		$statement_object = $this->prepare( $query_string, $on_slave );
 		$this->execute( $statement_object, $parameters_array );
 		return $statement_object;
