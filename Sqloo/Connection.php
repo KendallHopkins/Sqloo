@@ -113,7 +113,7 @@ class Sqloo_Connection
 			$statement_object = NULL;
 		}
 		if( ! $statement_object ) {
-			throw new Sqloo_Exception( $exception->getMessage()."<br>\n".$query_string, hexdec( substr( $exception->getCode(), 0, 2 ) ) );
+			throw new Sqloo_Exception( $exception->getMessage().PHP_EOL.$query_string, hexdec( substr( $exception->getCode(), 0, 2 ) ) );
 		}
 		return $statement_object;
 	}
@@ -145,10 +145,10 @@ class Sqloo_Connection
 		
 		if( ! $statement_object->execute() ) {
 			$error_info = $statement_object->errorInfo();
-			$driver_message = array_key_exists( 2, $error_info ) ? $error_info[2]."<br>\n" : "";
+			$driver_message = array_key_exists( 2, $error_info ) ? $error_info[2].PHP_EOL : "";
 			$error_string = $driver_message.$statement_object->queryString;
 			if( ! is_null( $parameters_array ) ) {
-				$error_string .= "\n".var_export( $parameters_array, TRUE );
+				$error_string .= PHP_EOL.var_export( $parameters_array, TRUE );
 			}
 			throw new Sqloo_Exception( $error_string, hexdec( substr( $error_info[0], 0, 2 ) ) );
 		}
